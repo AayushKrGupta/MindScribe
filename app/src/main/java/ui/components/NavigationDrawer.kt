@@ -33,12 +33,9 @@ fun NavigationDrawerContent(
 
     val mainItems = listOf(
         Triple("Note", Icons.Default.NoteAlt, ""),
-        Triple("Calendar", Icons.Default.CalendarMonth, "calendar"),
-        Triple("Bookmarks", Icons.Default.Bookmarks, "bookmarks"),
+        Triple("Reminder", Icons.Default.CalendarMonth, "reminders"),
         Triple("Archive", Icons.Default.Archive, "archive"),
-        Triple("Deleted", Icons.Default.Delete, "deleted"),
         Triple("Settings", Icons.Default.Settings, "settings"),
-        Triple("Chatbot", Icons.Default.BubbleChart, "chatbot"),
         Triple("About", Icons.Default.QuestionMark, "about")
     )
 

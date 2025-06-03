@@ -7,4 +7,30 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="my_notification_icon_color">#FF0000</color>
+
+
+
+    //Color Palette
+    <color name="note_color_default">#FFFFFFFF</color>
+    <color name="note_red">#FFFFCDD2</color>
+    <color name="note_pink">#FFF8BBD0</color>
+    <color name="note_purple">#FFE1BEE7</color>
+    <color name="note_deep_purple">#FFD1C4E9</color>
+    <color name="note_indigo">#FFC5CAE9</color>
+    <color name="note_blue">#FFBBDEFB</color>
+    <color name="note_light_blue">#FFB3E5FC</color>
+    <color name="note_cyan">#FFB2EBF2</color>
+    <color name="note_teal">#FFB2DFDB</color>
+    <color name="note_green">#FFC8E6C9</color>
+    <color name="note_light_green">#FFDCEDC8</color>
+    <color name="note_lime">#FFF0F4C3</color>
+    <color name="note_yellow">#FFFFF9C4</color>
+    <color name="note_amber">#FFFFECB3</color>
+    <color name="note_orange">#FFFFE0B2</color>
+    <color name="note_deep_orange">#FFFFCCBC</color>
+    <color name="note_brown">#FFD7CCC8</color>
+    <color name="note_grey">#FFE0E0E0</color>
+    <color name="note_blue_grey">#FFCFD8DC</color>
 </resources>
+

@@ -1,51 +1,75 @@
 package com.example.mindscribe
 
-import NavigationMenu.AboutScreen
-import NavigationMenu.ArchiveScreen
-import NavigationMenu.AudioScreen
-import NavigationMenu.BookmarksScreen
-import NavigationMenu.CalendarScreen
-import NavigationMenu.ChatbotScreen
-import NavigationMenu.DeletedScreen
-import NavigationMenu.ImagesScreen
+import NavigationMenu.* // Assumed imports for ArchiveScreen, AboutScreen etc.
+import Screens.* // Assumed imports for HomeScreen, LoginScreen, NotesScreen, ImagesScreen, AudioScreen etc.
+import NoteViewModel.NoteViewModel
+import NoteViewModel.NoteViewModelFactory // <--- IMPORTANT: This is the correct import for your ViewModel Factory
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.mindscribe.ui.screens.HomeScreen
-import com.example.mindscribe.ui.screens.LoginScreen
-import com.example.mindscribe.ui.screens.LoginScreen2
-import com.example.mindscribe.ui.screens.NotesScreen
+import androidx.navigation.navArgument
+import com.example.mindscribe.ui.screens.ReminderScreen
 import com.example.mindscribe.ui.screens.SettingsScreen
+import androidx.lifecycle.viewmodel.compose.viewModel // Needed for viewModel() with factory
 
 @Composable
-fun Nav(){
+fun Navigation(noteViewModelFactory: NoteViewModelFactory) { // <--- FIX: This type MUST be NoteViewModelFactory
     val navController = rememberNavController()
+
     NavHost(navController = navController, startDestination = "Home") {
-        composable(route="Home"){
-            HomeScreen(navController)
+
+        composable("Home") {
+            // Instantiate ViewModel using the factory for HomeScreen
+            val homeViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            HomeScreen(navController = navController, noteViewModel = homeViewModel)
         }
-        composable(route = "Login"){
-            LoginScreen(
-                navController
+
+        composable("Login") {
+            LoginScreen(navController)
+        }
+
+        // Note screen for new note (noteId = -1)
+        composable("note/-1") { backStackEntry ->
+            // Instantiate ViewModel using the factory for NotesScreen
+            val notesViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            NotesScreen(
+                navController = navController,
+                noteViewModel = notesViewModel,
+                navBackStackEntry = backStackEntry
             )
         }
 
-        composable(route = "note")
-            { NotesScreen(navController) }
-        composable(route = "audio") { AudioScreen(navController) }
-        composable("images") { ImagesScreen(navController) }
-        composable("calendar") { CalendarScreen(navController) }
-        composable("bookmarks") { BookmarksScreen(navController) }
-        composable("archive") { ArchiveScreen(navController) }
-        composable("deleted") { DeletedScreen(navController) }
-        composable("settings") { SettingsScreen(navController) }
-        composable("chatbot") { ChatbotScreen(navController) }
-        composable("about") { AboutScreen(navController) }
-        composable("Login2"){ LoginScreen2(navController) }
+        // Note screen for editing existing note
+        composable(
+            "note/{noteId}",
+            arguments = listOf(navArgument("noteId") {
+                type = NavType.StringType
+                defaultValue = "-1" // Default value as a String for StringType
+            })
+        ) { backStackEntry ->
+            // Instantiate ViewModel using the factory for NotesScreen
+            val notesViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            NotesScreen(
+                navController = navController,
+                noteViewModel = notesViewModel,
+                navBackStackEntry = backStackEntry
+            )
+        }
 
+        composable("images") { ImagesScreen(navController) }
+        composable("reminders") { ReminderScreen(navController) }
+
+        composable("archive") {
+            // Instantiate ViewModel using the factory for ArchiveScreen
+            val archiveViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            ArchiveScreen(navController = navController, noteViewModel = archiveViewModel)
+        }
+
+        composable("settings") { SettingsScreen(navController) }
+        composable("about") { AboutScreen(navController) }
+        composable("Login2") { LoginScreen2(navController) }
+        composable("audio") { AudioScreen(navController) }
     }
 }
-

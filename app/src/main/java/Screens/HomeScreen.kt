@@ -1,47 +1,79 @@
-package com.example.mindscribe.ui.screens
+package Screens
 
+import NoteViewModel.NoteViewModel
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
+import backend.Note
 import com.example.mindscribe.ui.components.NavigationDrawerContent
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
+import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.res.colorResource // Required to get Color from a resource ID
+
+private const val TAG = "NoteAppDebug"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
+fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = viewModel()) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    // ✅ Use String instead of Triple
-    var selectedItem = remember { mutableStateOf("home") } // Holds only route names
-
-    // For Account Dropdown Menu
+    var selectedItem = remember { mutableStateOf("home") }
     var accountMenuExpanded by remember { mutableStateOf(false) }
     val accountList = listOf("user1@gmail.com", "user2@gmail.com", "Add another account", "Manage accounts")
-
     var searchText by remember { mutableStateOf("") }
 
+    val notes by noteViewModel.activeNotes.observeAsState(emptyList())
 
+    LaunchedEffect(searchText) {
+        noteViewModel.search(searchText)
+        Log.d(TAG, "HomeScreen: Search text changed: '$searchText'")
+    }
+
+    LaunchedEffect(notes) {
+        Log.d(TAG, "HomeScreen: 'notes' list updated. Current size: ${notes.size}")
+        notes.forEachIndexed { index, note ->
+            Log.d(TAG, "HomeScreen: Note $index - ID: ${note.id}, Title: ${note.noteTitle}, Pinned: ${note.isPinned}, Archived: ${note.isArchived}")
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            NavigationDrawerContent(navController, drawerState, selectedItem, currentRoute = "home") // ✅ Pass currentRoute
+            NavigationDrawerContent(navController, drawerState, selectedItem, currentRoute = "home")
         },
         content = {
             Scaffold(
@@ -57,34 +89,29 @@ fun HomeScreen(navController: NavController) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp)
-                                    .background(Color.White, shape = RoundedCornerShape(24.dp)),
+                                    .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f), shape = MaterialTheme.shapes.medium),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Drawer Icon
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                     Icon(Icons.Filled.Menu, contentDescription = "Menu")
                                 }
 
-                                // Search Bar
                                 BasicTextField(
                                     value = searchText,
                                     onValueChange = { searchText = it },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp),
+                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                                     decorationBox = { innerTextField ->
-                                        Box(contentAlignment = Alignment.CenterStart) {
+                                        Box {
                                             if (searchText.isEmpty()) {
-                                                Text("Search", color = Color.Gray, fontSize = 18.sp)
+                                                Text("Search", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             }
                                             innerTextField()
                                         }
                                     }
                                 )
 
-                                // Account Icon Dropdown Menu
                                 Box {
-                                    IconButton(onClick = { navController.navigate(route = "Login") }) {
+                                    IconButton(onClick = { accountMenuExpanded = !accountMenuExpanded }) {
                                         Icon(Icons.Filled.AccountCircle, contentDescription = "Accounts")
                                     }
 
@@ -95,7 +122,7 @@ fun HomeScreen(navController: NavController) {
                                         accountList.forEach { account ->
                                             DropdownMenuItem(
                                                 text = { Text(account) },
-                                                onClick = { accountMenuExpanded = false } // Handle account switch
+                                                onClick = { accountMenuExpanded = false }
                                             )
                                         }
                                     }
@@ -107,28 +134,201 @@ fun HomeScreen(navController: NavController) {
                 },
                 floatingActionButton = {
                     FloatingActionButton(
-                        onClick = { navController.navigate("note") },
+                        onClick = { navController.navigate("note/-1") },
                         containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = Color.White
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
                         Icon(Icons.Filled.EditNote, contentDescription = "Add Note")
                     }
                 }
             ) { innerPadding ->
 
-                Column(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .padding(16.dp)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    val note = ""
-                    Text(text = "Write your first $note!", fontSize = 20.sp)
-                    Spacer(Modifier.height(20.dp))
+                    if (notes.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 64.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No notes found", style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    } else {
+                        items(notes, key = { it.id }) { note ->
+                            NoteCard(
+                                note = note,
+                                onClick = { navController.navigate("note/${note.id}") },
+                                onDelete = { noteViewModel.delete(it) },
+                                onTogglePin = { noteViewModel.togglePin(it) },
+                                onToggleArchive = { noteViewModel.toggleArchive(it) }
+                            )
+                        }
+                    }
                 }
             }
         }
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun NoteCard(
+    note: Note,
+    onClick: () -> Unit,
+    onDelete: (Note) -> Unit,
+    onTogglePin: (Note) -> Unit,
+    onToggleArchive: (Note) -> Unit
+) {
+    val displayDescription = if (note.noteDesc.isBlank()) "No text" else note.noteDesc
+    val formattedDateTime = remember(note.timestamp) {
+        val sdf = SimpleDateFormat("MMMM d, hh:mm a", Locale.getDefault())
+        sdf.format(Date(note.timestamp))
+    }
+    // Changed this line to use the note's colorResId
+    val cardBackgroundColor = colorResource(id = note.colorResId)
+
+    var showOptionsMenu by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .fillMaxHeight()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    showOptionsMenu = true
+                }
+            ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor) // Apply the note's color here
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = note.noteTitle,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, // You might want to adjust text color based on background luminance
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (note.isPinned) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Filled.PushPin,
+                            contentDescription = "Pinned",
+                            tint = MaterialTheme.colorScheme.primary, // Adjust tint for visibility on various note colors
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = displayDescription,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f) // Adjust text color for visibility
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!note.audioPath.isNullOrBlank()) {
+                        Icon(
+                            imageVector = Icons.Filled.Mic,
+                            contentDescription = "Contains Audio",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    if (!note.imageUrls.isNullOrEmpty()) {
+                        Icon(
+                            imageVector = Icons.Filled.Image,
+                            contentDescription = "Contains Image",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    if (note.noteTitle.isNotBlank() || note.noteDesc.isNotBlank()) {
+                        Icon(
+                            imageVector = Icons.Filled.Description,
+                            contentDescription = "Contains Text",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = formattedDateTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust text color for visibility
+                )
+            }
+
+            DropdownMenu(
+                expanded = showOptionsMenu,
+                onDismissRequest = { showOptionsMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(if (note.isPinned) "Unpin Note" else "Pin Note") },
+                    onClick = {
+                        onTogglePin(note)
+                        showOptionsMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (note.isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                            contentDescription = if (note.isPinned) "Unpin" else "Pin"
+                        )
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(if (note.isArchived) "Unarchive Note" else "Archive Note") },
+                    onClick = {
+                        onToggleArchive(note)
+                        showOptionsMenu = false
+                    },
+                    leadingIcon = { Icon(Icons.Filled.Archive, contentDescription = "Archive") }
+                )
+                Divider()
+                DropdownMenuItem(
+                    text = { Text("Delete Note", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        onDelete(note)
+                        showOptionsMenu = false
+                    },
+                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
+                )
+            }
+        }
+    }
 }
