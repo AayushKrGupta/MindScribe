@@ -39,7 +39,7 @@ import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
 import com.example.mindscribe.R
-import Database.NoteDao
+import java.util.UUID // Import UUID for generating local IDs
 
 private const val TAG = "NoteAppDebug"
 
@@ -48,12 +48,11 @@ private const val TAG = "NoteAppDebug"
 fun NotesScreen(
     navController: NavController,
     noteViewModel: NoteViewModel, // ViewModel is provided by NavHost
-    noteId: Int // noteId is passed directly
+    noteId: String? // Changed type to String?
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // <--- NEW: Get the userId from the ViewModel
     val currentUserId = remember { noteViewModel.userId }
 
     // State variables
@@ -64,11 +63,11 @@ fun NotesScreen(
     var isSaving by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
-
+    var currentNoteId by rememberSaveable { mutableStateOf(noteId ?: "") } // Store the ID here
     var selectedColorResId by rememberSaveable { mutableStateOf(R.color.note_color_default) }
+
     val recorder = remember { MediaRecorderHelper(context) }
 
-    // Permission launcher (no change)
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -90,54 +89,80 @@ fun NotesScreen(
     }
 
     // Effect to load existing note data
-    LaunchedEffect(noteId) {
-        Log.d(TAG, "NotesScreen: LaunchedEffect for noteId: $noteId")
-        if (noteId != null && noteId != -1) {
-            // Call suspend function getNoteById inside coroutineScope
+    LaunchedEffect(noteId, currentUserId) { // Use noteId (String?) and currentUserId as keys
+        Log.d(TAG, "NotesScreen: LaunchedEffect for noteId: $noteId, userId: $currentUserId")
+        if (!noteId.isNullOrBlank()) { // Check if noteId is a valid non-empty string
             noteViewModel.getNoteById(noteId)?.let { note ->
-                Log.d(TAG, "NotesScreen: Loaded existing note: ${note.id}, Title: ${note.noteTitle}")
-                titleText = note.noteTitle
-                noteText = note.noteDesc
-                note.imageUrls?.let { uriStringList ->
-                    selectedImageUris = uriStringList.mapNotNull { uriString ->
-                        try {
-                            val uri = Uri.parse(uriString)
-                            // Attempt to re-take persistable URI permission if needed
-                            // Note: This might throw SecurityException if the URI is no longer valid or app restarts
-                            // without proper intent flags. Handling this gracefully is key.
-                            context.contentResolver.takePersistableUriPermission(
-                                uri,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            )
-                            Log.d(TAG, "NotesScreen: Re-granted permission for URI: $uri")
-                            uri
-                        } catch (e: Exception) {
-                            Log.e(TAG, "NotesScreen: Error parsing or re-granting permission for URI: $uriString - ${e.message}")
-                            null // Filter out invalid URIs
+                if (note.userId == currentUserId) {
+                    Log.d(TAG, "NotesScreen: Loaded existing note: ${note.id}, Title: ${note.noteTitle}")
+                    currentNoteId = note.id // Make sure the internal ID state is updated
+                    titleText = note.noteTitle
+                    noteText = note.noteDesc
+                    note.imageUrls?.let { uriStringList ->
+                        selectedImageUris = uriStringList.mapNotNull { uriString ->
+                            try {
+                                val uri = Uri.parse(uriString)
+                                // When reloading, we don't request persistable flags again.
+                                // We just need to ensure read access if it wasn't already granted or if it expired.
+                                // The Photo Picker (used by ActivityResultContracts.PickVisualMedia) inherently gives
+                                // short-term read access. For long-term access, takePersistableUriPermission is called ONCE.
+                                // It's better to just try to open the URI and catch SecurityException if permission is truly lost.
+                                // However, keeping the takePersistableUriPermission here is generally harmless
+                                // if you only pass read/write flags.
+                                context.contentResolver.takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                )
+                                Log.d(TAG, "NotesScreen: Re-granted permission for URI: $uri")
+                                uri
+                            } catch (e: Exception) {
+                                Log.e(TAG, "NotesScreen: Error parsing or re-granting permission for URI: $uriString - ${e.message}")
+                                null
+                            }
                         }
+                        Log.d(TAG, "NotesScreen: Loaded image URIs: ${selectedImageUris.size}")
+                    } ?: run {
+                        selectedImageUris = emptyList()
                     }
-                    Log.d(TAG, "NotesScreen: Loaded image URIs: ${selectedImageUris.size}")
-                } ?: run {
-                    selectedImageUris = emptyList()
-                }
 
-                note.audioPath?.let { path ->
-                    recordingFilePath = path
-                    Log.d(TAG, "NotesScreen: Loaded audio path: $path")
-                } ?: run {
+                    note.audioPath?.let { path ->
+                        recordingFilePath = path
+                        Log.d(TAG, "NotesScreen: Loaded audio path: $path")
+                    } ?: run {
+                        recordingFilePath = null
+                    }
+                    selectedColorResId = note.colorResId
+                } else {
+                    Log.w(TAG, "NotesScreen: Note $noteId found but does not belong to current user $currentUserId. Treating as new note.")
+                    // Reset for new note creation
+                    currentNoteId = ""
+                    titleText = ""
+                    noteText = ""
+                    selectedImageUris = emptyList()
                     recordingFilePath = null
+                    selectedColorResId = R.color.note_color_default
                 }
-            } ?: Log.d(TAG, "NotesScreen: Note with ID $noteId not found.")
+            } ?: run {
+                Log.d(TAG, "NotesScreen: Note with ID $noteId not found.")
+                // If note not found, clear existing data
+                currentNoteId = ""
+                titleText = ""
+                noteText = ""
+                selectedImageUris = emptyList()
+                recordingFilePath = null
+                selectedColorResId = R.color.note_color_default
+            }
         } else {
-            // For new notes, clear existing data
+            // For new notes (noteId is null or blank), clear and prepare for new entry
+            currentNoteId = "" // Ensure it's empty for a new note to trigger ID generation
             titleText = ""
             noteText = ""
             selectedImageUris = emptyList()
             recordingFilePath = null
+            selectedColorResId = R.color.note_color_default
         }
     }
 
-    // Clean up recorder (no change)
     DisposableEffect(Unit) {
         onDispose {
             if (isRecording) {
@@ -153,31 +178,30 @@ fun NotesScreen(
         }
 
         isSaving = true
+
+        // If currentNoteId is empty, generate a new one. Otherwise, use the existing one.
+        val idToUse = if (currentNoteId.isEmpty()) UUID.randomUUID().toString() else currentNoteId
+
         val noteToSave = Note(
-            id = if (noteId == -1) 0 else noteId,
+            id = idToUse, // Use the generated/existing String ID
             noteTitle = titleText.trim(),
             noteDesc = noteText.trim(),
             imageUrls = selectedImageUris.map { it.toString() },
             audioPath = recordingFilePath,
             colorResId = selectedColorResId,
-            userId = currentUserId // <--- NEW: Pass the userId here
-            // isPinned and isArchived will use their default values or be loaded from existing note if applicable
+            userId = currentUserId
+            // isPinned and isArchived will use their default values if not explicitly handled
         )
 
         coroutineScope.launch {
-            if (noteToSave.id == 0) {
-                noteViewModel.insert(noteToSave)
-                Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
-            } else {
-                noteViewModel.update(noteToSave)
-                Toast.makeText(context, "Note updated", Toast.LENGTH_SHORT).show()
-            }
+            // NoteViewModel's insert method now handles both insert and update (upsert) logic
+            noteViewModel.insert(noteToSave)
+            Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
             isSaving = false
             navController.popBackStack()
         }
     }
 
-    // Resolve the selected color resource ID to an actual Compose Color (no change)
     val resolvedSelectedColor = colorResource(id = selectedColorResId)
 
     Scaffold(
@@ -224,7 +248,6 @@ fun NotesScreen(
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Title Input (no change)
                 BasicTextField(
                     value = titleText,
                     onValueChange = { titleText = it },
@@ -243,7 +266,6 @@ fun NotesScreen(
                     enabled = !isSaving
                 )
 
-                // Images (no change)
                 selectedImageUris.forEachIndexed { index, uri ->
                     Spacer(modifier = Modifier.height(16.dp))
                     Box(
@@ -266,7 +288,6 @@ fun NotesScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Audio Player (no change)
                 recordingFilePath?.let { path ->
                     if (File(path).exists()) {
                         Spacer(modifier = Modifier.height(16.dp))
@@ -275,7 +296,6 @@ fun NotesScreen(
                     }
                 }
 
-                // Note Content (no change)
                 BasicTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
@@ -295,7 +315,6 @@ fun NotesScreen(
                 )
             }
 
-            // Color Picker Dialog (no change)
             if (showColorPicker) {
                 ColorPaletteDialog(
                     onColorSelected = { colorResId ->
@@ -309,7 +328,6 @@ fun NotesScreen(
     }
 }
 
-// NotesTopAppBar and NotesBottomAppBar remain unchanged as they were correct.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesTopAppBar(
@@ -378,12 +396,18 @@ fun NotesBottomAppBar(
 
             for (uri in uris) {
                 try {
+                    // *** RECTIFIED LINE ***
+                    // Only pass READ and/or WRITE flags here.
+                    // The PERSISTABLE flag should have been handled by the launching Intent.
                     context.contentResolver.takePersistableUriPermission(
                         uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION // Only request read permission here
+                        // If you also need to modify the image, add: | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
                 } catch (e: SecurityException) {
                     Log.e(TAG, "Failed to take persistable permission for URI: $uri", e)
+                    // Consider removing this URI from selectedImageUris if permission fails
+                    // Or provide user feedback that the image can't be saved persistently
                 }
             }
             Toast.makeText(context, "${uris.size} Images Selected", Toast.LENGTH_SHORT).show()
@@ -394,7 +418,6 @@ fun NotesBottomAppBar(
 
     BottomAppBar(
         actions = {
-            // Color Picker Button
             IconButton(onClick = onColorPickClick) {
                 Icon(
                     Icons.Filled.Palette,
@@ -403,12 +426,10 @@ fun NotesBottomAppBar(
                 )
             }
 
-            // Image Button
             IconButton(onClick = { galleryLauncher.launch("image/*") }) {
                 Icon(Icons.Filled.Image, contentDescription = "Add Image")
             }
 
-            // Record Button
             IconButton(onClick = { onToggleRecording(!isRecording) }) {
                 Icon(
                     imageVector = if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic,

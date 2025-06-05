@@ -3,7 +3,7 @@ package Database
 
 import androidx.room.*
 import backend.Note
-import kotlinx.coroutines.flow.Flow // Import Flow
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
@@ -13,7 +13,11 @@ interface NoteDao {
 
     // Get a specific note by ID, ensuring it belongs to the specified user
     @Query("SELECT * FROM notes WHERE id = :id AND userId = :userId")
-    suspend fun getNoteByIdAndUser(id: Int, userId: String): Note?
+    suspend fun getNoteByIdAndUser(id: String, userId: String): Note? // Changed id to String
+
+    // NEW: Get a specific note by ID (without user ID, for general use in NoteScreen)
+    @Query("SELECT * FROM notes WHERE id = :id LIMIT 1")
+    suspend fun getNoteById(id: String): Note? // Changed id to String
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note)

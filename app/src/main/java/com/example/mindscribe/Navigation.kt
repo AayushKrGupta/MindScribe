@@ -5,7 +5,7 @@ import LoginScreen.LoginScreen2
 import NavigationMenu.*
 import Screens.*
 import NoteViewModel.NoteViewModel
-import NoteViewModel.NoteViewModelFactory
+import NoteViewModel.NoteViewModelFactory // Ensure this import points to your updated factory
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,6 +25,8 @@ import Database.NoteDatabase
 import NoteViewModel.AuthViewModel
 import Repo.NoteRepository
 import android.widget.Toast
+import com.google.firebase.auth.FirebaseAuth // Make sure FirebaseAuth is imported
+import com.example.mindscribe.repository.FirestoreRepository // Make sure FirestoreRepository is imported
 
 @Composable
 fun Navigation() {
@@ -33,8 +35,12 @@ fun Navigation() {
     val currentUser by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
     val application = context.applicationContext as Application
+
+    // Instantiate your repositories and FirebaseAuth once
     val database = remember { NoteDatabase.getDatabase(application) }
     val noteRepository = remember { NoteRepository(database.noteDao()) }
+    val firestoreRepository = remember { FirestoreRepository() } // Instantiate FirestoreRepository
+    val firebaseAuth = remember { FirebaseAuth.getInstance() } // Get FirebaseAuth instance
 
     // Handle authentication events
     LaunchedEffect(authViewModel) {
@@ -99,9 +105,14 @@ fun Navigation() {
         }
 
         composable("Home") {
-            val userId = currentUser?.uid ?: "guest"
+            // No userId needed here as NoteViewModelFactory already injects FirebaseAuth,
+            // and NoteViewModel gets userId from auth.currentUser?.uid internally.
             val homeViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(noteRepository, userId)
+                factory = NoteViewModelFactory(
+                    noteRepository,
+                    firestoreRepository,
+                    firebaseAuth
+                )
             )
 
             HomeScreen(
@@ -113,7 +124,8 @@ fun Navigation() {
                     } else {
                         navController.navigate("Login")
                     }
-                }
+                },
+                authViewModel = authViewModel // Keep this for HomeScreen's UI logic
             )
         }
 
@@ -122,26 +134,35 @@ fun Navigation() {
             "note/{noteId}",
             arguments = listOf(navArgument("noteId") {
                 type = NavType.StringType
-                defaultValue = "-1"
+                defaultValue = ""
+                nullable = true
             })
         ) { backStackEntry ->
-            val userId = currentUser?.uid ?: "guest"
+            // No userId needed here for the factory, as NoteViewModel gets it internally.
             val notesViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(noteRepository, userId)
+                factory = NoteViewModelFactory(
+                    noteRepository,
+                    firestoreRepository,
+                    firebaseAuth
+                )
             )
             NotesScreen(
                 navController = navController,
                 noteViewModel = notesViewModel,
-                noteId = backStackEntry.arguments?.getString("noteId")?.toIntOrNull() ?: -1
+                noteId = backStackEntry.arguments?.getString("noteId")
             )
         }
 
         composable("images") { ImagesScreen(navController) }
         composable("reminders") { ReminderScreen(navController) }
         composable("archive") {
-            val userId = currentUser?.uid ?: "guest"
+            // No userId needed here for the factory, as NoteViewModel gets it internally.
             val archiveViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(noteRepository, userId)
+                factory = NoteViewModelFactory(
+                    noteRepository,
+                    firestoreRepository,
+                    firebaseAuth
+                )
             )
             ArchiveScreen(navController = navController, noteViewModel = archiveViewModel)
         }

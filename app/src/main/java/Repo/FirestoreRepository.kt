@@ -49,5 +49,3 @@ class FirestoreRepository @Inject constructor() {
             }
     }
 }
-
-

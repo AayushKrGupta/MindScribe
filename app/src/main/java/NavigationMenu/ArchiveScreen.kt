@@ -1,5 +1,7 @@
 // Screens/ArchiveScreen.kt
-package NavigationMenu
+// Make sure this package declaration matches your actual project structure.
+// If your 'Screens' folder is directly under 'app/src/main/java', this is correct.
+package Screens
 
 import NoteViewModel.NoteViewModel
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -27,17 +29,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.lifecycle.viewmodel.compose.viewModel
-import backend.Note
-import com.example.mindscribe.ui.components.NavigationDrawerContent // Import if used within
-import kotlinx.coroutines.launch // For drawer if used
+import androidx.lifecycle.viewmodel.compose.viewModel // This should still be here if you're using default ViewModel factory (though we pass it now)
+import backend.Note // <--- IMPORTANT: Ensure this import is correct for your Note data class's package
+import com.example.mindscribe.ui.components.NavigationDrawerContent // Only if used directly in this file
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.colorResource // Ensure this is imported for colorResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel = viewModel()) {
+fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel) {
+    // This line should now work IF archivedNotes is defined in NoteViewModel
     val archivedNotes by noteViewModel.archivedNotes.observeAsState(emptyList())
 
     Scaffold(
@@ -74,11 +78,11 @@ fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel = v
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // .id should now be recognized because 'backend.Note' is imported
                     items(archivedNotes, key = { it.id }) { note ->
-                        // Display an archived note card, maybe with an "Unarchive" option
                         ArchivedNoteCard(
                             note = note,
-                            onUnarchive = { noteViewModel.toggleArchive(it) }, // Toggle to unarchive
+                            onUnarchive = { noteViewModel.toggleArchive(it) },
                             onDelete = { noteViewModel.delete(it) },
                             onClick = { navController.navigate("note/${note.id}") }
                         )
@@ -102,7 +106,8 @@ fun ArchivedNoteCard(
         val sdf = SimpleDateFormat("MMMM d, hh:mm a", Locale.getDefault())
         sdf.format(Date(note.timestamp))
     }
-    val cardBackgroundColor = MaterialTheme.colorScheme.surfaceVariant
+    // Use the note's color resource ID for the card background
+    val cardBackgroundColor = colorResource(id = note.colorResId)
 
     var showOptionsMenu by remember { mutableStateOf(false) }
 
@@ -212,6 +217,5 @@ fun ArchivedNoteCard(
                 )
             }
         }
-
     }
 }
