@@ -7,11 +7,13 @@ import kotlinx.coroutines.flow.Flow // Import Flow
 
 @Dao
 interface NoteDao {
-    @Query("SELECT * FROM notes")
-    fun getAllNotes(): Flow<List<Note>> // Change to Flow
+    // Get all notes for a specific user, ordered by timestamp
+    @Query("SELECT * FROM notes WHERE userId = :userId ORDER BY timestamp DESC")
+    fun getAllNotesForUser(userId: String): Flow<List<Note>>
 
-    @Query("SELECT * FROM notes WHERE id = :id")
-    suspend fun getNoteById(id: Int): Note? // Keep as suspend for single lookup
+    // Get a specific note by ID, ensuring it belongs to the specified user
+    @Query("SELECT * FROM notes WHERE id = :id AND userId = :userId")
+    suspend fun getNoteByIdAndUser(id: Int, userId: String): Note?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note)
@@ -22,6 +24,11 @@ interface NoteDao {
     @Delete
     suspend fun delete(note: Note)
 
-    @Query("SELECT * FROM notes WHERE noteTitle LIKE '%' || :query || '%' OR noteDesc LIKE '%' || :query || '%'")
-    fun searchNotes(query: String): Flow<List<Note>> // Change to Flow
+    // Search notes for a specific user, filtering by title or description
+    @Query("SELECT * FROM notes WHERE userId = :userId AND (noteTitle LIKE '%' || :query || '%' OR noteDesc LIKE '%' || :query || '%')")
+    fun searchNotesForUser(query: String, userId: String): Flow<List<Note>>
+
+    // Optional: Add a method to delete all notes for a specific user
+    @Query("DELETE FROM notes WHERE userId = :userId")
+    suspend fun deleteAllNotesForUser(userId: String)
 }

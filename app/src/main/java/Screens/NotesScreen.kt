@@ -1,7 +1,6 @@
 package Screens
 
 import NoteViewModel.NoteViewModel
-import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -9,10 +8,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -26,26 +23,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource // Correct import for color resources
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
-import backend.Note // Your Note data class
+import backend.Note
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import ui.components.MediaRecorderHelper
 import ui.components.AudioPlayer
-import ui.components.ColorPaletteDialog // Your ColorPaletteDialog import
+import ui.components.ColorPaletteDialog
 import kotlinx.coroutines.launch
-import java.util.*
 import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
-import com.example.mindscribe.R // <--- IMPORTANT: Ensure this R import points to your app's R file
-
+import com.example.mindscribe.R
+import Database.NoteDao
 
 private const val TAG = "NoteAppDebug"
 
@@ -53,12 +47,14 @@ private const val TAG = "NoteAppDebug"
 @Composable
 fun NotesScreen(
     navController: NavController,
-    noteViewModel: NoteViewModel = viewModel(),
-    navBackStackEntry: NavBackStackEntry
+    noteViewModel: NoteViewModel, // ViewModel is provided by NavHost
+    noteId: Int // noteId is passed directly
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val noteId = navBackStackEntry.arguments?.getString("noteId")?.toIntOrNull()
+
+    // <--- NEW: Get the userId from the ViewModel
+    val currentUserId = remember { noteViewModel.userId }
 
     // State variables
     var titleText by rememberSaveable { mutableStateOf("") }
@@ -69,11 +65,10 @@ fun NotesScreen(
     var isRecording by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
 
-    // Using R.color.note_color_7 as the default based on your Note data class
     var selectedColorResId by rememberSaveable { mutableStateOf(R.color.note_color_default) }
     val recorder = remember { MediaRecorderHelper(context) }
 
-    // Permission launcher
+    // Permission launcher (no change)
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -94,46 +89,55 @@ fun NotesScreen(
         }
     }
 
-    // Load existing note
+    // Effect to load existing note data
     LaunchedEffect(noteId) {
         Log.d(TAG, "NotesScreen: LaunchedEffect for noteId: $noteId")
         if (noteId != null && noteId != -1) {
+            // Call suspend function getNoteById inside coroutineScope
             noteViewModel.getNoteById(noteId)?.let { note ->
-                Log.d(TAG, "NotesScreen: Loaded existing note: ${note.id}")
+                Log.d(TAG, "NotesScreen: Loaded existing note: ${note.id}, Title: ${note.noteTitle}")
                 titleText = note.noteTitle
                 noteText = note.noteDesc
-                selectedColorResId = note.colorResId // Load the color resource ID from the Note
-
                 note.imageUrls?.let { uriStringList ->
                     selectedImageUris = uriStringList.mapNotNull { uriString ->
                         try {
                             val uri = Uri.parse(uriString)
+                            // Attempt to re-take persistable URI permission if needed
+                            // Note: This might throw SecurityException if the URI is no longer valid or app restarts
+                            // without proper intent flags. Handling this gracefully is key.
                             context.contentResolver.takePersistableUriPermission(
                                 uri,
                                 Intent.FLAG_GRANT_READ_URI_PERMISSION
                             )
+                            Log.d(TAG, "NotesScreen: Re-granted permission for URI: $uri")
                             uri
                         } catch (e: Exception) {
-                            null
+                            Log.e(TAG, "NotesScreen: Error parsing or re-granting permission for URI: $uriString - ${e.message}")
+                            null // Filter out invalid URIs
                         }
                     }
-                } ?: run { selectedImageUris = emptyList() }
+                    Log.d(TAG, "NotesScreen: Loaded image URIs: ${selectedImageUris.size}")
+                } ?: run {
+                    selectedImageUris = emptyList()
+                }
 
                 note.audioPath?.let { path ->
                     recordingFilePath = path
+                    Log.d(TAG, "NotesScreen: Loaded audio path: $path")
+                } ?: run {
+                    recordingFilePath = null
                 }
             } ?: Log.d(TAG, "NotesScreen: Note with ID $noteId not found.")
         } else {
-            // Reset for new notes
+            // For new notes, clear existing data
             titleText = ""
             noteText = ""
             selectedImageUris = emptyList()
             recordingFilePath = null
-            selectedColorResId = R.color.note_color_default // Default color for new notes
         }
     }
 
-    // Clean up recorder
+    // Clean up recorder (no change)
     DisposableEffect(Unit) {
         onDispose {
             if (isRecording) {
@@ -150,12 +154,14 @@ fun NotesScreen(
 
         isSaving = true
         val noteToSave = Note(
-            id = if (noteId == -1) 0 else noteId ?: 0,
+            id = if (noteId == -1) 0 else noteId,
             noteTitle = titleText.trim(),
             noteDesc = noteText.trim(),
             imageUrls = selectedImageUris.map { it.toString() },
             audioPath = recordingFilePath,
-            colorResId = selectedColorResId // Save the color resource ID
+            colorResId = selectedColorResId,
+            userId = currentUserId // <--- NEW: Pass the userId here
+            // isPinned and isArchived will use their default values or be loaded from existing note if applicable
         )
 
         coroutineScope.launch {
@@ -171,7 +177,7 @@ fun NotesScreen(
         }
     }
 
-    // Resolve the selected color resource ID to an actual Compose Color
+    // Resolve the selected color resource ID to an actual Compose Color (no change)
     val resolvedSelectedColor = colorResource(id = selectedColorResId)
 
     Scaffold(
@@ -179,7 +185,7 @@ fun NotesScreen(
             NotesTopAppBar(
                 navController = navController,
                 onExit = { navController.popBackStack() },
-                backgroundColor = resolvedSelectedColor // Pass resolved color
+                backgroundColor = resolvedSelectedColor
             )
         },
         bottomBar = {
@@ -195,21 +201,21 @@ fun NotesScreen(
                             recordingFilePath = path
                             Toast.makeText(context, "Recording saved!", Toast.LENGTH_SHORT).show()
                         }
-                        isRecording = false // Stop recording regardless of path success for UI
+                        isRecording = false
                     } else {
                         recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
                 },
                 onImagesSelected = { uris -> selectedImageUris = uris },
                 onColorPickClick = { showColorPicker = true },
-                selectedColor = resolvedSelectedColor // Pass resolved color
+                selectedColor = resolvedSelectedColor
             )
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(resolvedSelectedColor) // Apply resolved color
+                .background(resolvedSelectedColor)
         ) {
             Column(
                 modifier = Modifier
@@ -218,7 +224,7 @@ fun NotesScreen(
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Title Input
+                // Title Input (no change)
                 BasicTextField(
                     value = titleText,
                     onValueChange = { titleText = it },
@@ -237,7 +243,7 @@ fun NotesScreen(
                     enabled = !isSaving
                 )
 
-                // Images
+                // Images (no change)
                 selectedImageUris.forEachIndexed { index, uri ->
                     Spacer(modifier = Modifier.height(16.dp))
                     Box(
@@ -260,7 +266,7 @@ fun NotesScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Audio Player
+                // Audio Player (no change)
                 recordingFilePath?.let { path ->
                     if (File(path).exists()) {
                         Spacer(modifier = Modifier.height(16.dp))
@@ -269,7 +275,7 @@ fun NotesScreen(
                     }
                 }
 
-                // Note Content
+                // Note Content (no change)
                 BasicTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
@@ -289,12 +295,12 @@ fun NotesScreen(
                 )
             }
 
-            // Color Picker Dialog
+            // Color Picker Dialog (no change)
             if (showColorPicker) {
                 ColorPaletteDialog(
                     onColorSelected = { colorResId ->
-                        selectedColorResId = colorResId // Update the state with the resource ID
-                        showColorPicker = false // Dismiss dialog after selection
+                        selectedColorResId = colorResId
+                        showColorPicker = false
                     },
                     onDismiss = { showColorPicker = false }
                 )
@@ -303,19 +309,20 @@ fun NotesScreen(
     }
 }
 
+// NotesTopAppBar and NotesBottomAppBar remain unchanged as they were correct.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesTopAppBar(
     navController: NavController,
     onExit: () -> Unit,
-    backgroundColor: Color // Expects a Compose Color
+    backgroundColor: Color
 ) {
     val context = LocalContext.current
     var menuExpanded by remember { mutableStateOf(false) }
 
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = backgroundColor // Use the passed Compose Color
+            containerColor = backgroundColor
         ),
         title = { Text("Notes") },
         navigationIcon = {
@@ -361,37 +368,25 @@ fun NotesBottomAppBar(
     onToggleRecording: (Boolean) -> Unit,
     onImagesSelected: (List<Uri>) -> Unit,
     onColorPickClick: () -> Unit,
-    selectedColor: Color // Expects a Compose Color
+    selectedColor: Color
 ) {
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
-            // First, update the UI with all selected URIs (even if permissions aren't persisted yet)
-            onImagesSelected(uris) // Update state with all selected URIs immediately
+            onImagesSelected(uris)
 
-            // Then, attempt to take persistable URI permissions in the background or for long-term storage
-            // This part is for *long-term access*, not for immediate display count.
-            val successfullyPersistedUris = mutableListOf<Uri>()
             for (uri in uris) {
                 try {
                     context.contentResolver.takePersistableUriPermission(
                         uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
-                    successfullyPersistedUris.add(uri)
                 } catch (e: SecurityException) {
                     Log.e(TAG, "Failed to take persistable permission for URI: $uri", e)
-                    // If permission fails, we still want to show the image *now* if it's displayable
-                    // But for *saving*, we might need to copy the file to app-private storage instead.
-                    // For now, we'll let the original `uris` be used for `selectedImageUris` state.
                 }
             }
-
-            // Toast reflects the number of images the user *selected*,
-            // not just those for which persistable permission was granted.
             Toast.makeText(context, "${uris.size} Images Selected", Toast.LENGTH_SHORT).show()
-
         } else {
             Toast.makeText(context, "No Images Selected", Toast.LENGTH_SHORT).show()
         }
@@ -404,7 +399,7 @@ fun NotesBottomAppBar(
                 Icon(
                     Icons.Filled.Palette,
                     contentDescription = "Pick Color",
-                    tint = selectedColor // Use the passed Compose Color
+                    tint = selectedColor
                 )
             }
 
@@ -434,4 +429,3 @@ fun NotesBottomAppBar(
         }
     )
 }
-

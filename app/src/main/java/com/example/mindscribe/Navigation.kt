@@ -1,9 +1,11 @@
 package com.example.mindscribe
 
-import NavigationMenu.* // Assumed imports for ArchiveScreen, AboutScreen etc.
-import Screens.* // Assumed imports for HomeScreen, LoginScreen, NotesScreen, ImagesScreen, AudioScreen etc.
+import LoginScreen.LoginScreen
+import LoginScreen.LoginScreen2
+import NavigationMenu.*
+import Screens.*
 import NoteViewModel.NoteViewModel
-import NoteViewModel.NoteViewModelFactory // <--- IMPORTANT: This is the correct import for your ViewModel Factory
+import NoteViewModel.NoteViewModelFactory
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -12,64 +14,139 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.mindscribe.ui.screens.ReminderScreen
 import com.example.mindscribe.ui.screens.SettingsScreen
-import androidx.lifecycle.viewmodel.compose.viewModel // Needed for viewModel() with factory
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import android.app.Application
+import androidx.compose.ui.platform.LocalContext
+import Database.NoteDatabase
+import NoteViewModel.AuthViewModel
+import Repo.NoteRepository
+import android.widget.Toast
 
 @Composable
-fun Navigation(noteViewModelFactory: NoteViewModelFactory) { // <--- FIX: This type MUST be NoteViewModelFactory
+fun Navigation() {
     val navController = rememberNavController()
+    val authViewModel: AuthViewModel = viewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val database = remember { NoteDatabase.getDatabase(application) }
+    val noteRepository = remember { NoteRepository(database.noteDao()) }
 
-    NavHost(navController = navController, startDestination = "Home") {
-
-        composable("Home") {
-            // Instantiate ViewModel using the factory for HomeScreen
-            val homeViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
-            HomeScreen(navController = navController, noteViewModel = homeViewModel)
+    // Handle authentication events
+    LaunchedEffect(authViewModel) {
+        authViewModel.authEvents.collect { event ->
+            when (event) {
+                is AuthViewModel.AuthEvent.SignInSuccess -> {
+                    navController.navigate("Home") {
+                        popUpTo("Login") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                is AuthViewModel.AuthEvent.SignInFailure -> {
+                    Toast.makeText(
+                        context,
+                        "Sign in failed: ${event.exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is AuthViewModel.AuthEvent.SignOutSuccess -> {
+                    navController.navigate("Login") {
+                        popUpTo("Login2") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                is AuthViewModel.AuthEvent.SignOutFailure -> {
+                    Toast.makeText(
+                        context,
+                        "Sign out failed: ${event.exception.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
+    }
 
+    NavHost(
+        navController = navController,
+        startDestination = "Home"
+    ) {
         composable("Login") {
-            LoginScreen(navController)
-        }
-
-        // Note screen for new note (noteId = -1)
-        composable("note/-1") { backStackEntry ->
-            // Instantiate ViewModel using the factory for NotesScreen
-            val notesViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
-            NotesScreen(
+            LoginScreen(
                 navController = navController,
-                noteViewModel = notesViewModel,
-                navBackStackEntry = backStackEntry
+                onGoogleSignIn = { idToken: String->
+                    authViewModel.handleGoogleSignInResult(idToken)
+                }
             )
         }
 
-        // Note screen for editing existing note
+        composable("Login2") {
+            if (currentUser != null) {
+                LoginScreen2(
+                    navController = navController,
+                    onSignOut = { authViewModel.signOut() }
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.navigate("Login") {
+                        popUpTo("Login2") { inclusive = true }
+                    }
+                }
+            }
+        }
+
+        composable("Home") {
+            val userId = currentUser?.uid ?: "guest"
+            val homeViewModel: NoteViewModel = viewModel(
+                factory = NoteViewModelFactory(noteRepository, userId)
+            )
+
+            HomeScreen(
+                navController = navController,
+                noteViewModel = homeViewModel,
+                onAccountClick = {
+                    if (currentUser != null) {
+                        navController.navigate("Login2")
+                    } else {
+                        navController.navigate("Login")
+                    }
+                }
+            )
+        }
+
+
         composable(
             "note/{noteId}",
             arguments = listOf(navArgument("noteId") {
                 type = NavType.StringType
-                defaultValue = "-1" // Default value as a String for StringType
+                defaultValue = "-1"
             })
         ) { backStackEntry ->
-            // Instantiate ViewModel using the factory for NotesScreen
-            val notesViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            val userId = currentUser?.uid ?: "guest"
+            val notesViewModel: NoteViewModel = viewModel(
+                factory = NoteViewModelFactory(noteRepository, userId)
+            )
             NotesScreen(
                 navController = navController,
                 noteViewModel = notesViewModel,
-                navBackStackEntry = backStackEntry
+                noteId = backStackEntry.arguments?.getString("noteId")?.toIntOrNull() ?: -1
             )
         }
 
         composable("images") { ImagesScreen(navController) }
         composable("reminders") { ReminderScreen(navController) }
-
         composable("archive") {
-            // Instantiate ViewModel using the factory for ArchiveScreen
-            val archiveViewModel: NoteViewModel = viewModel(factory = noteViewModelFactory)
+            val userId = currentUser?.uid ?: "guest"
+            val archiveViewModel: NoteViewModel = viewModel(
+                factory = NoteViewModelFactory(noteRepository, userId)
+            )
             ArchiveScreen(navController = navController, noteViewModel = archiveViewModel)
         }
-
         composable("settings") { SettingsScreen(navController) }
         composable("about") { AboutScreen(navController) }
-        composable("Login2") { LoginScreen2(navController) }
         composable("audio") { AudioScreen(navController) }
     }
 }

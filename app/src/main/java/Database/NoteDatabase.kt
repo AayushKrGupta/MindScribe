@@ -1,17 +1,17 @@
-// backend/NoteDatabase.kt
-package Database // CHANGED: Assuming your database package is 'backend' for consistency
+// Database/NoteDatabase.kt
+package Database // Keeping package as 'Database' as per your provided code
 
-// CHANGED: Assuming NoteDao is in 'backend'
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters // ADDED: Import TypeConverters
-import backend.Note
-import backend.Converters // ADDED: Import your Converters class
+import androidx.room.TypeConverters
+import backend.Note // Import Note from 'backend' package
+import backend.Converters // Import Converters from 'backend' package
+import Database.NoteDao // Import NoteDao from 'Database' package (same as NoteDatabase)
 
-@Database(entities = [Note::class], version = 7, exportSchema = false) // 'exportSchema = false' is often added for dev
-@TypeConverters(Converters::class) // ADDED: Tell Room to use your Converters
+@Database(entities = [Note::class], version = 8, exportSchema = false) // Version incremented to 8
+@TypeConverters(Converters::class)
 abstract class NoteDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
@@ -26,7 +26,7 @@ abstract class NoteDatabase : RoomDatabase() {
                     NoteDatabase::class.java,
                     "note_database"
                 )
-                    .fallbackToDestructiveMigration() // This line handles schema changes by rebuilding the database (wipes data)
+                    .fallbackToDestructiveMigration() // This handles schema changes by rebuilding the database (wipes data)
                     .build()
                 INSTANCE = instance
                 instance

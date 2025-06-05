@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "981854304089",
+    "project_id": "mindscribever1",
+    "storage_bucket": "mindscribever1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:981854304089:android:24955e2c9e4dc9c14ebe48",
+        "android_client_info": {
+          "package_name": "com.example.mindscribe"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "981854304089-4v5h1ts9bi8ig5e3uq6pp6usrtnf77l9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mindscribe",
+            "certificate_hash": "6609349b6f8ae2bc8cda8a163def9c20e41e8836"
+          }
+        },
+        {
+          "client_id": "981854304089-dbrltdobnqpsdpncodb30so9lbdvgld3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2TIc1eT-mmCjRKaxo-umxK_IYQTCiU0Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "981854304089-dbrltdobnqpsdpncodb30so9lbdvgld3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

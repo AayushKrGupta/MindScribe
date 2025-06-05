@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.mindscribe" />
+                  <option name="mobileSdkAppId" value="1:981854304089:android:24955e2c9e4dc9c14ebe48" />
+                  <option name="projectId" value="mindscribever1" />
+                  <option name="projectNumber" value="981854304089" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

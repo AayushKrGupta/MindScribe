@@ -1,6 +1,7 @@
 package Screens
 
 import NoteViewModel.NoteViewModel
+import NoteViewModel.AuthViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,12 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -28,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.lifecycle.viewmodel.compose.viewModel
 import backend.Note
 import com.example.mindscribe.ui.components.NavigationDrawerContent
 import kotlinx.coroutines.launch
@@ -40,23 +36,32 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.ui.res.colorResource // Required to get Color from a resource ID
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.ui.res.colorResource
 
 private const val TAG = "NoteAppDebug"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = viewModel()) {
+fun HomeScreen(
+    navController: NavController,
+    noteViewModel: NoteViewModel,
+    onAccountClick: () -> Unit,
+    authViewModel: AuthViewModel? = null
+) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
     var selectedItem = remember { mutableStateOf("home") }
-    var accountMenuExpanded by remember { mutableStateOf(false) }
-    val accountList = listOf("user1@gmail.com", "user2@gmail.com", "Add another account", "Manage accounts")
     var searchText by remember { mutableStateOf("") }
-
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
+
+    // Optional: Still observe user if AuthViewModel is provided
+    val currentUser by authViewModel?.currentUser?.collectAsState() ?: remember { mutableStateOf(null) }
 
     LaunchedEffect(searchText) {
         noteViewModel.search(searchText)
@@ -65,9 +70,6 @@ fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = view
 
     LaunchedEffect(notes) {
         Log.d(TAG, "HomeScreen: 'notes' list updated. Current size: ${notes.size}")
-        notes.forEachIndexed { index, note ->
-            Log.d(TAG, "HomeScreen: Note $index - ID: ${note.id}, Title: ${note.noteTitle}, Pinned: ${note.isPinned}, Archived: ${note.isArchived}")
-        }
     }
 
     ModalNavigationDrawer(
@@ -89,7 +91,10 @@ fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = view
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp)
-                                    .background(MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f), shape = MaterialTheme.shapes.medium),
+                                    .background(
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
+                                        shape = MaterialTheme.shapes.medium
+                                    ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -110,22 +115,13 @@ fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = view
                                     }
                                 )
 
-                                Box {
-                                    IconButton(onClick = { accountMenuExpanded = !accountMenuExpanded }) {
-                                        Icon(Icons.Filled.AccountCircle, contentDescription = "Accounts")
-                                    }
-
-                                    DropdownMenu(
-                                        expanded = accountMenuExpanded,
-                                        onDismissRequest = { accountMenuExpanded = false }
-                                    ) {
-                                        accountList.forEach { account ->
-                                            DropdownMenuItem(
-                                                text = { Text(account) },
-                                                onClick = { accountMenuExpanded = false }
-                                            )
-                                        }
-                                    }
+                                IconButton(onClick = onAccountClick) {
+                                    Icon(
+                                        imageVector = Icons.Filled.AccountCircle,
+                                        contentDescription = "Account",
+                                        tint = if (currentUser != null) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         },
@@ -142,7 +138,6 @@ fun HomeScreen(navController: NavController, noteViewModel: NoteViewModel = view
                     }
                 }
             ) { innerPadding ->
-
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier
@@ -192,12 +187,9 @@ fun NoteCard(
 ) {
     val displayDescription = if (note.noteDesc.isBlank()) "No text" else note.noteDesc
     val formattedDateTime = remember(note.timestamp) {
-        val sdf = SimpleDateFormat("MMMM d, hh:mm a", Locale.getDefault())
-        sdf.format(Date(note.timestamp))
+        SimpleDateFormat("MMMM d, hh:mm a", Locale.getDefault()).format(Date(note.timestamp))
     }
-    // Changed this line to use the note's colorResId
     val cardBackgroundColor = colorResource(id = note.colorResId)
-
     var showOptionsMenu by remember { mutableStateOf(false) }
 
     Card(
@@ -206,13 +198,11 @@ fun NoteCard(
             .fillMaxHeight()
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = {
-                    showOptionsMenu = true
-                }
+                onLongClick = { showOptionsMenu = true }
             ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor) // Apply the note's color here
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
     ) {
         Column(
             modifier = Modifier
@@ -230,7 +220,7 @@ fun NoteCard(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, // You might want to adjust text color based on background luminance
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
                     )
                     if (note.isPinned) {
@@ -238,7 +228,7 @@ fun NoteCard(
                         Icon(
                             imageVector = Icons.Filled.PushPin,
                             contentDescription = "Pinned",
-                            tint = MaterialTheme.colorScheme.primary, // Adjust tint for visibility on various note colors
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -249,7 +239,7 @@ fun NoteCard(
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f) // Adjust text color for visibility
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -264,7 +254,7 @@ fun NoteCard(
                         Icon(
                             imageVector = Icons.Filled.Mic,
                             contentDescription = "Contains Audio",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -273,7 +263,7 @@ fun NoteCard(
                         Icon(
                             imageVector = Icons.Filled.Image,
                             contentDescription = "Contains Image",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -282,7 +272,7 @@ fun NoteCard(
                         Icon(
                             imageVector = Icons.Filled.Description,
                             contentDescription = "Contains Text",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust tint for visibility
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -290,7 +280,7 @@ fun NoteCard(
                 Text(
                     text = formattedDateTime,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), // Adjust text color for visibility
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )
             }
 
