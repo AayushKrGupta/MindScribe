@@ -1,3 +1,4 @@
+// NoteViewModel.kt
 package NoteViewModel
 
 import Repo.NoteRepository
@@ -9,10 +10,10 @@ import androidx.lifecycle.viewModelScope
 import backend.Note
 import com.example.mindscribe.repository.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers // Make sure this is imported
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map // Make sure this is imported
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,11 +33,12 @@ class NoteViewModel @Inject constructor(
 
     // Notes flow combining local and Firestore data
     private val _allNotesFlow = combine(
-        localRepo.getAllNotesForUser(userId),
-        firestoreRepo.getNotesByUser(userId)
+        localRepo.getAllNotesForUser(userId), // Data from local Room database
+        firestoreRepo.getNotesByUser(userId)  // Data from Firestore (real-time Flow)
     ) { localNotes, cloudNotes ->
         // Merge strategy: Cloud notes override local ones based on ID.
         // For notes with the same ID, prefer the one with a newer timestamp or the cloud version.
+        // This merge is for displaying the most up-to-date view.
         (localNotes + cloudNotes)
             .groupBy { it.id }
             .map { (_, notesWithSameId) ->
@@ -58,13 +60,33 @@ class NoteViewModel @Inject constructor(
                 )
         }.asLiveData()
 
-    // --- ADDED THIS SECTION FOR ARCHIVED NOTES ---
     val archivedNotes: LiveData<List<Note>> = _allNotesFlow
         .map { notes ->
             notes.filter { it.isArchived } // Filter for archived notes
                 .sortedByDescending { it.timestamp } // Sort archived notes by timestamp
         }.asLiveData()
-    // ---------------------------------------------
+
+
+    // --- THIS IS THE CRUCIAL PART TO ADD/CONFIRM ---
+    init {
+        // Observe Firestore notes and synchronize them to Room
+        // This ensures Room is always up-to-date with Firestore data,
+        // providing offline access and correct display on app restart.
+        userId.let { currentUserId ->
+            if (currentUserId != "guest") { // Only sync if a real user is logged in
+                viewModelScope.launch(Dispatchers.IO) {
+                    firestoreRepo.getNotesByUser(currentUserId).collect { cloudNotes ->
+                        // Loop through notes from Firestore and insert/update them into Room
+                        // 'insert' with OnConflictStrategy.REPLACE handles both new inserts and updates
+                        cloudNotes.forEach { note ->
+                            localRepo.insert(note)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // --- END CRUCIAL PART ---
 
 
     // Search function that updates the search text flow
@@ -82,7 +104,7 @@ class NoteViewModel @Inject constructor(
         try {
             // Write to Firestore first
             firestoreRepo.upsertNote(noteWithUser, userId)
-            // Then write locally
+            // Then write locally to update UI immediately and ensure offline access
             localRepo.insert(noteWithUser)
             _uiState.value = _uiState.value.copy(
                 toastMessage = "Note saved to cloud"
@@ -117,8 +139,6 @@ class NoteViewModel @Inject constructor(
                 localRepo.delete(note)
                 _uiState.value = _uiState.value.copy(toastMessage = "Note deleted offline (will sync later)")
             }
-            // If a note is deleted, ensure it's removed from both local and cloud view models
-            // This is handled by the _allNotesFlow re-collection.
         }
     }
 
@@ -126,8 +146,6 @@ class NoteViewModel @Inject constructor(
     // --- FUNCTIONS FOR PIN/ARCHIVE ---
     fun togglePin(note: Note) = viewModelScope.launch {
         if (note.userId == userId) {
-            // When toggling pin, make sure it's not archived.
-            // Also update timestamp to bring it to the top of active notes.
             val updatedNote = note.copy(
                 isPinned = !note.isPinned,
                 isArchived = false, // Unarchive if pinned
@@ -139,8 +157,6 @@ class NoteViewModel @Inject constructor(
 
     fun toggleArchive(note: Note) = viewModelScope.launch {
         if (note.userId == userId) {
-            // When toggling archive, also unpin it if it was pinned.
-            // Update timestamp for sorting.
             val updatedNote = note.copy(
                 isArchived = !note.isArchived,
                 isPinned = false, // Unpin if archived
