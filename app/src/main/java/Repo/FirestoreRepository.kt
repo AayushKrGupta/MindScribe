@@ -16,7 +16,6 @@ class FirestoreRepository @Inject constructor() {
     private val db: FirebaseFirestore = Firebase.firestore
     private val notesCollection = db.collection("notes")
 
-    // Generate a new Firestore document ID if empty
     private fun generateId(): String = db.collection("temp").document().id
 
     suspend fun upsertNote(note: Note, userId: String) {
@@ -26,15 +25,20 @@ class FirestoreRepository @Inject constructor() {
             } else {
                 note.copy(userId = userId)
             }
-
-            notesCollection.document(noteWithId.id).set(noteWithId).await()
+            notesCollection.document(noteWithId.id)
+                .set(noteWithId)
+                .await()
         } catch (e: Exception) {
-            throw e
+            throw Exception("Failed to save note: ${e.message}")
         }
     }
 
     suspend fun deleteNote(noteId: String) {
-        notesCollection.document(noteId).delete().await()
+        try {
+            notesCollection.document(noteId).delete().await()
+        } catch (e: Exception) {
+            throw Exception("Failed to delete note: ${e.message}")
+        }
     }
 
     fun getNotesByUser(userId: String): Flow<List<Note>> {
@@ -43,8 +47,12 @@ class FirestoreRepository @Inject constructor() {
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .snapshots()
             .map { snapshot ->
-                snapshot.documents.map { doc ->
-                    doc.toObject(Note::class.java)!!.copy(id = doc.id)
+                snapshot.documents.mapNotNull { doc ->
+                    try {
+                        doc.toObject(Note::class.java)?.copy(id = doc.id)
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
             }
     }

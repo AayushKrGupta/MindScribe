@@ -12,9 +12,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -40,11 +38,20 @@ import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.TextStyle // Import TextStyle
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce // Import debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.MutableStateFlow // For search flow
+import kotlinx.coroutines.flow.collectLatest // For search debounce
 
 private const val TAG = "NoteAppDebug"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class) // Add FlowPreview for debounce
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -57,15 +64,25 @@ fun HomeScreen(
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
     var selectedItem = remember { mutableStateOf("home") }
-    var searchText by remember { mutableStateOf("") }
+
+    // Use MutableStateFlow for search text for debounce
+    val searchTextFlow = remember { MutableStateFlow("") }
+    val searchText by searchTextFlow.collectAsState() // Observe it back as a State
+
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
 
-    // Optional: Still observe user if AuthViewModel is provided
     val currentUser by authViewModel?.currentUser?.collectAsState() ?: remember { mutableStateOf(null) }
 
-    LaunchedEffect(searchText) {
-        noteViewModel.search(searchText)
-        Log.d(TAG, "HomeScreen: Search text changed: '$searchText'")
+    // Debounced search effect
+    LaunchedEffect(searchTextFlow) {
+        searchTextFlow
+            .debounce(300L) // Debounce for 300 milliseconds
+            .distinctUntilChanged() // Only emit if the value changes
+            .filter { it.isNotBlank() || it.isEmpty() } // Allow empty string to reset search
+            .collectLatest { query -> // Use collectLatest to cancel previous searches
+                noteViewModel.search(query)
+                Log.d(TAG, "HomeScreen: Debounced search triggered for query: '$query'")
+            }
     }
 
     LaunchedEffect(notes) {
@@ -93,7 +110,7 @@ fun HomeScreen(
                                     .padding(horizontal = 12.dp)
                                     .background(
                                         MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
-                                        shape = MaterialTheme.shapes.medium
+                                        shape = MaterialTheme.shapes.medium // Keep this shape for the overall search bar container
                                     ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -103,12 +120,22 @@ fun HomeScreen(
 
                                 BasicTextField(
                                     value = searchText,
-                                    onValueChange = { searchText = it },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                                    onValueChange = { searchTextFlow.value = it }, // Update the MutableStateFlow
+                                    textStyle = TextStyle(
+                                        fontSize = 18.sp, // Adjust font size as needed
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    ),
+                                    singleLine = true, // Ensure single line for search bar
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(vertical = 10.dp, horizontal = 8.dp), // Adjusted vertical padding for cursor alignment
                                     decorationBox = { innerTextField ->
-                                        Box {
+                                        Box(
+                                            modifier = Modifier.fillMaxHeight(), // Ensure Box fills available height
+                                            contentAlignment = Alignment.CenterStart // Align hint to start
+                                        ) {
                                             if (searchText.isEmpty()) {
-                                                Text("Search", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                Text("Search", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 18.sp)
                                             }
                                             innerTextField()
                                         }
@@ -164,9 +191,27 @@ fun HomeScreen(
                             NoteCard(
                                 note = note,
                                 onClick = { navController.navigate("note/${note.id}") },
-                                onDelete = { noteViewModel.delete(it) },
-                                onTogglePin = { noteViewModel.togglePin(it) },
-                                onToggleArchive = { noteViewModel.toggleArchive(it) }
+                                onDelete = {
+                                    scope.launch {
+                                        Log.d(TAG, "HomeScreen: Attempting to DELETE note: ${it.noteTitle}")
+                                        noteViewModel.delete(it)
+                                        Log.d(TAG, "HomeScreen: DELETE call initiated for note: ${it.noteTitle}")
+                                    }
+                                },
+                                onTogglePin = {
+                                    scope.launch {
+                                        Log.d(TAG, "HomeScreen: Attempting to TOGGLE PIN for note: ${it.noteTitle}, current pin: ${it.isPinned}")
+                                        noteViewModel.togglePin(it)
+                                        Log.d(TAG, "HomeScreen: TOGGLE PIN call initiated for note: ${it.noteTitle}")
+                                    }
+                                },
+                                onToggleArchive = {
+                                    scope.launch {
+                                        Log.d(TAG, "HomeScreen: Attempting to TOGGLE ARCHIVE for note: ${it.noteTitle}, current archive: ${it.isArchived}")
+                                        noteViewModel.toggleArchive(it)
+                                        Log.d(TAG, "HomeScreen: TOGGLE ARCHIVE call initiated for note: ${it.noteTitle}")
+                                    }
+                                }
                             )
                         }
                     }
@@ -284,9 +329,13 @@ fun NoteCard(
                 )
             }
 
+            // --- FIX: Add shape to DropdownMenu ---
             DropdownMenu(
                 expanded = showOptionsMenu,
-                onDismissRequest = { showOptionsMenu = false }
+                onDismissRequest = { showOptionsMenu = false },
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp), shape = RoundedCornerShape(12.dp)) // Apply rounded shape and elevated background
+                    .clip(RoundedCornerShape(12.dp)) // Clip children to the rounded shape
             ) {
                 DropdownMenuItem(
                     text = { Text(if (note.isPinned) "Unpin Note" else "Pin Note") },
@@ -319,6 +368,7 @@ fun NoteCard(
                     leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
                 )
             }
+
         }
     }
 }
