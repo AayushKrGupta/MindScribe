@@ -9,7 +9,7 @@ import backend.Note // Import Note from 'backend' package
 import backend.Converters // Import Converters from 'backend' package
 import Database.NoteDao // Import NoteDao from 'Database' package (same as NoteDatabase)
 
-@Database(entities = [Note::class], version = 9, exportSchema = false) // Version incremented to 8
+@Database(entities = [Note::class], version = 10, exportSchema = false) // Version incremented to 8
 @TypeConverters(Converters::class)
 abstract class NoteDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao

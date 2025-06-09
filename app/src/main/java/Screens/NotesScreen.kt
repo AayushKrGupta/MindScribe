@@ -102,13 +102,6 @@ fun NotesScreen(
                         selectedImageUris = uriStringList.mapNotNull { uriString ->
                             try {
                                 val uri = Uri.parse(uriString)
-                                // When reloading, we don't request persistable flags again.
-                                // We just need to ensure read access if it wasn't already granted or if it expired.
-                                // The Photo Picker (used by ActivityResultContracts.PickVisualMedia) inherently gives
-                                // short-term read access. For long-term access, takePersistableUriPermission is called ONCE.
-                                // It's better to just try to open the URI and catch SecurityException if permission is truly lost.
-                                // However, keeping the takePersistableUriPermission here is generally harmless
-                                // if you only pass read/write flags.
                                 context.contentResolver.takePersistableUriPermission(
                                     uri,
                                     Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -396,18 +389,12 @@ fun NotesBottomAppBar(
 
             for (uri in uris) {
                 try {
-                    // *** RECTIFIED LINE ***
-                    // Only pass READ and/or WRITE flags here.
-                    // The PERSISTABLE flag should have been handled by the launching Intent.
                     context.contentResolver.takePersistableUriPermission(
                         uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION // Only request read permission here
-                        // If you also need to modify the image, add: | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     )
                 } catch (e: SecurityException) {
                     Log.e(TAG, "Failed to take persistable permission for URI: $uri", e)
-                    // Consider removing this URI from selectedImageUris if permission fails
-                    // Or provide user feedback that the image can't be saved persistently
                 }
             }
             Toast.makeText(context, "${uris.size} Images Selected", Toast.LENGTH_SHORT).show()

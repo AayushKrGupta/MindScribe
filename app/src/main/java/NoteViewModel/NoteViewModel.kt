@@ -1,16 +1,12 @@
-// NoteViewModel.kt
 package NoteViewModel
 
 import Repo.NoteRepository
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.asLiveData
-import androidx.lifecycle.viewModelScope
+import android.util.Log
+import androidx.lifecycle.*
 import backend.Note
 import com.example.mindscribe.repository.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.Dispatchers // Make sure this is imported
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -26,151 +22,141 @@ class NoteViewModel @Inject constructor(
     internal val userId get() = auth.currentUser?.uid ?: "guest"
 
     private val _searchTextFlow = MutableStateFlow("")
-
-    // UI State
+    private val _forceRefresh = MutableStateFlow(false)
     private val _uiState = MutableStateFlow(NoteUiState())
     val uiState = _uiState
 
-    // Notes flow combining local and Firestore data
     private val _allNotesFlow = combine(
-        localRepo.getAllNotesForUser(userId), // Data from local Room database
-        firestoreRepo.getNotesByUser(userId)  // Data from Firestore (real-time Flow)
-    ) { localNotes, cloudNotes ->
-        // Merge strategy: Cloud notes override local ones based on ID.
-        // For notes with the same ID, prefer the one with a newer timestamp or the cloud version.
-        // This merge is for displaying the most up-to-date view.
-        (localNotes + cloudNotes)
+        localRepo.getAllNotesForUser(userId),
+        firestoreRepo.getNotesByUser(userId),
+        _forceRefresh
+    ) { localNotes, cloudNotes, _ ->
+        mergeNotes(localNotes, cloudNotes)
+    }
+
+    val activeNotes: LiveData<List<Note>> = _allNotesFlow
+        .combine(_searchTextFlow) { notes, searchText ->
+            notes.filter { !it.isArchived }
+                .filter {
+                    searchText.isBlank() ||
+                            it.noteTitle.contains(searchText, ignoreCase = true) ||
+                            it.noteDesc.contains(searchText, ignoreCase = true)
+                }
+                .sortedWith(compareByDescending<Note> { it.isPinned }.thenByDescending { it.timestamp })
+        }.asLiveData()
+
+    val archivedNotes: LiveData<List<Note>> = _allNotesFlow
+        .map { notes -> notes.filter { it.isArchived }.sortedByDescending { it.timestamp } }
+        .asLiveData()
+
+    init {
+        val currentUserId = userId
+        if (currentUserId != "guest") {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    firestoreRepo.getNotesByUser(currentUserId).collect { cloudNotes ->
+                        cloudNotes.forEach { note ->
+                            localRepo.insert(note)
+                            _forceRefresh.value = !_forceRefresh.value
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("NoteViewModel", "Error syncing Firestore notes: ${e.message}", e)
+                    _uiState.value = _uiState.value.copy(
+                        toastMessage = "Sync error: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun mergeNotes(localNotes: List<Note>, cloudNotes: List<Note>): List<Note> {
+        return (localNotes + cloudNotes)
             .groupBy { it.id }
             .map { (_, notesWithSameId) ->
                 notesWithSameId.maxByOrNull { it.timestamp } ?: notesWithSameId.first()
             }
     }
 
-    val activeNotes: LiveData<List<Note>> = _allNotesFlow
-        .combine(_searchTextFlow) { notes, searchText ->
-            notes.filter { !it.isArchived } // Filter out archived notes from active view
-                .filter {
-                    searchText.isBlank() ||
-                            it.noteTitle.contains(searchText, ignoreCase = true) ||
-                            it.noteDesc.contains(searchText, ignoreCase = true)
-                }
-                .sortedWith(
-                    compareByDescending<Note> { it.isPinned }
-                        .thenByDescending { it.timestamp }
-                )
-        }.asLiveData()
+    fun search(query: String) { _searchTextFlow.value = query }
+    fun clearToast() { _uiState.value = _uiState.value.copy(toastMessage = null) }
+    suspend fun getNoteById(id: String): Note? = localRepo.getNoteById(id)
 
-    val archivedNotes: LiveData<List<Note>> = _allNotesFlow
-        .map { notes ->
-            notes.filter { it.isArchived } // Filter for archived notes
-                .sortedByDescending { it.timestamp } // Sort archived notes by timestamp
-        }.asLiveData()
-
-
-    // --- THIS IS THE CRUCIAL PART TO ADD/CONFIRM ---
-    init {
-        // Observe Firestore notes and synchronize them to Room
-        // This ensures Room is always up-to-date with Firestore data,
-        // providing offline access and correct display on app restart.
-        userId.let { currentUserId ->
-            if (currentUserId != "guest") { // Only sync if a real user is logged in
-                viewModelScope.launch(Dispatchers.IO) {
-                    firestoreRepo.getNotesByUser(currentUserId).collect { cloudNotes ->
-                        // Loop through notes from Firestore and insert/update them into Room
-                        // 'insert' with OnConflictStrategy.REPLACE handles both new inserts and updates
-                        cloudNotes.forEach { note ->
-                            localRepo.insert(note)
-                        }
-                    }
-                }
-            }
-        }
-    }
-    // --- END CRUCIAL PART ---
-
-
-    // Search function that updates the search text flow
-    fun search(query: String) {
-        _searchTextFlow.value = query
-    }
-
-    suspend fun getNoteById(id: String): Note? {
-        return localRepo.getNoteById(id)
-    }
-
-    // Existing methods with Firestore integration
     fun insert(note: Note) = viewModelScope.launch {
-        val noteWithUser = note.copy(userId = userId)
+        val noteWithUser = note.copy(
+            userId = if (note.userId.isBlank()) userId else note.userId,
+            timestamp = System.currentTimeMillis()
+        )
+
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
         try {
-            // Write to Firestore first
-            firestoreRepo.upsertNote(noteWithUser, userId)
-            // Then write locally to update UI immediately and ensure offline access
+            // 1. Save locally first for immediate UI update
             localRepo.insert(noteWithUser)
+            _forceRefresh.value = !_forceRefresh.value
+
+            // 2. Sync to Firestore in background
+            firestoreRepo.upsertNote(noteWithUser, noteWithUser.userId)
+
             _uiState.value = _uiState.value.copy(
-                toastMessage = "Note saved to cloud"
+                isLoading = false,
+                toastMessage = "Note saved successfully"
             )
         } catch (e: Exception) {
-            // Fallback to local only
-            localRepo.insert(noteWithUser)
             _uiState.value = _uiState.value.copy(
-                toastMessage = "Saved offline (will sync later)"
+                isLoading = false,
+                toastMessage = "Error saving note: ${e.message}"
             )
-        }
-    }
-
-    fun update(note: Note) = viewModelScope.launch {
-        if (note.userId == userId) {
-            try {
-                firestoreRepo.upsertNote(note, userId)
-                localRepo.update(note)
-            } catch (e: Exception) {
-                localRepo.update(note)
-            }
+            // Fallback - ensure local save
+            localRepo.insert(noteWithUser)
+            _forceRefresh.value = !_forceRefresh.value
         }
     }
 
     fun delete(note: Note) = viewModelScope.launch {
-        if (note.userId == userId) {
-            try {
-                firestoreRepo.deleteNote(note.id)
-                localRepo.delete(note)
-                _uiState.value = _uiState.value.copy(toastMessage = "Note deleted from cloud")
-            } catch (e: Exception) {
-                localRepo.delete(note)
-                _uiState.value = _uiState.value.copy(toastMessage = "Note deleted offline (will sync later)")
-            }
+        _uiState.value = _uiState.value.copy(isLoading = true)
+
+        try {
+            localRepo.delete(note)
+            _forceRefresh.value = !_forceRefresh.value
+            firestoreRepo.deleteNote(note.id)
+
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                toastMessage = "Note deleted successfully"
+            )
+        } catch (e: Exception) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                toastMessage = "Error deleting note: ${e.message}"
+            )
+            localRepo.delete(note)
+            _forceRefresh.value = !_forceRefresh.value
         }
     }
 
-
-    // --- FUNCTIONS FOR PIN/ARCHIVE ---
     fun togglePin(note: Note) = viewModelScope.launch {
-        if (note.userId == userId) {
-            val updatedNote = note.copy(
-                isPinned = !note.isPinned,
-                isArchived = false, // Unarchive if pinned
-                timestamp = System.currentTimeMillis()
-            )
-            update(updatedNote) // Use the existing update logic
-        }
+        val updatedNote = note.copy(
+            isPinned = !note.isPinned,
+            isArchived = false,
+            timestamp = System.currentTimeMillis()
+        )
+        insert(updatedNote)
     }
 
     fun toggleArchive(note: Note) = viewModelScope.launch {
-        if (note.userId == userId) {
-            val updatedNote = note.copy(
-                isArchived = !note.isArchived,
-                isPinned = false, // Unpin if archived
-                timestamp = System.currentTimeMillis()
-            )
-            update(updatedNote) // Use the existing update logic
-        }
+        val updatedNote = note.copy(
+            isArchived = !note.isArchived,
+            isPinned = false,
+            timestamp = System.currentTimeMillis()
+        )
+        insert(updatedNote)
     }
-    // -------------------------------------
-
 
     data class NoteUiState(
         val toastMessage: String? = null,
-        val isLoading: Boolean = false
+        val isLoading: Boolean = false,
+        val syncStatus: String? = null
     )
 
     class Factory @Inject constructor(
@@ -179,8 +165,7 @@ class NoteViewModel @Inject constructor(
         private val auth: FirebaseAuth
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return NoteViewModel(localRepo, firestoreRepo, auth) as T
-        }
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            NoteViewModel(localRepo, firestoreRepo, auth) as T
     }
 }

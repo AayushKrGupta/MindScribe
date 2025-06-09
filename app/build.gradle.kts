@@ -108,5 +108,7 @@ dependencies {
     implementation(libs.androidx.material3.windowsize)
     implementation ("com.google.firebase:firebase-firestore-ktx:24.9.1")  // Latest version
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
+    implementation("com.google.firebase:firebase-analytics")
 
 }

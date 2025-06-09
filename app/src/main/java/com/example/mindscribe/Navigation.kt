@@ -28,6 +28,7 @@ import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth // Make sure FirebaseAuth is imported
 import com.example.mindscribe.repository.FirestoreRepository // Make sure FirestoreRepository is imported
 
+
 @Composable
 fun Navigation() {
     val navController = rememberNavController()
