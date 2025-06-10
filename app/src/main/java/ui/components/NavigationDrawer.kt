@@ -25,8 +25,9 @@ import com.example.mindscribe.R
 fun NavigationDrawerContent(
     navController: NavController,
     drawerState: DrawerState,
-    selectedItem: MutableState<String>,
-    currentRoute: String // 📌 Pass current route from HomeScreen
+    selectedItem: String,
+    onItemSelected: (String) -> Unit,
+    currentRoute: String
 ) {
     val scope = rememberCoroutineScope()
     var isNoteExpanded by remember { mutableStateOf(false) }
@@ -50,13 +51,17 @@ fun NavigationDrawerContent(
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))
 
-            // 🌟 App Logo
+            // App Logo
             Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
-                    modifier = Modifier.size(64.dp).background(Color.Gray, shape = CircleShape),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(Color.Gray, shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -66,7 +71,8 @@ fun NavigationDrawerContent(
                             .size(65.dp)
                             .clip(CircleShape)
                             .clickable {
-                                selectedItem.value = "home"
+                                onItemSelected("home")
+                                scope.launch { drawerState.close() }
                                 navController.navigate("home")
                             }
                     )
@@ -75,52 +81,52 @@ fun NavigationDrawerContent(
 
             Spacer(Modifier.height(12.dp))
 
-            // 🔹 Main Drawer Items
+            // Main Drawer Items
             mainItems.forEach { (label, icon, route) ->
                 val isSelected = when (label) {
-                    "Note" -> currentRoute == "home" // ✅ Mark Note as active on HomeScreen
-                    else -> selectedItem.value == route
+                    "Note" -> currentRoute == "home"
+                    else -> selectedItem == route
                 }
 
                 if (label == "Note") {
-                    // 🔹 "Note" is a collapsible menu, doesn't navigate
                     NavigationDrawerItem(
                         icon = { Icon(icon, contentDescription = label) },
                         label = { Text(label) },
                         selected = isSelected,
-                        onClick = { isNoteExpanded = !isNoteExpanded }, // Toggle dropdown
+                        onClick = { isNoteExpanded = !isNoteExpanded },
                         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                         badge = {
                             Icon(
-                                imageVector = if (isNoteExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                imageVector = if (isNoteExpanded) Icons.Default.KeyboardArrowUp
+                                else Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Expand"
                             )
                         }
                     )
 
-                    // 🔹 Show "Audio" & "Images" if expanded
+                    // Show sub-items if expanded
                     if (isNoteExpanded) {
                         subItems.forEach { (subLabel, subIcon, subRoute) ->
                             NavigationDrawerItem(
                                 icon = { Icon(subIcon, contentDescription = subLabel) },
                                 label = { Text(subLabel) },
-                                selected = selectedItem.value == subRoute,
+                                selected = selectedItem == subRoute,
                                 onClick = {
-                                    selectedItem.value = subRoute
+                                    onItemSelected(subRoute)
                                     scope.launch { drawerState.close() }
+                                    navController.navigate(subRoute)
                                 },
-                                modifier = Modifier.padding(start = 24.dp) // Indent sub-items
+                                modifier = Modifier.padding(start = 24.dp)
                             )
                         }
                     }
                 } else {
-                    // 🔹 Regular navigation items
                     NavigationDrawerItem(
                         icon = { Icon(icon, contentDescription = label) },
                         label = { Text(label) },
                         selected = isSelected,
                         onClick = {
-                            selectedItem.value = route
+                            onItemSelected(route)
                             scope.launch { drawerState.close() }
                             navController.navigate(route)
                         },

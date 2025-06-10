@@ -32,18 +32,13 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import backend.Note
 import com.example.mindscribe.ui.components.NavigationDrawerContent
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
 private const val TAG = "NoteAppDebug"
 
-@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -55,25 +50,27 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    var selectedItem = remember { mutableStateOf("home") }
-    val searchTextFlow = remember { MutableStateFlow("") }
-    val searchText by searchTextFlow.collectAsState()
+    var selectedItem by remember { mutableStateOf("home") }
+    var searchText by remember { mutableStateOf("") }
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
     val currentUser by authViewModel?.currentUser?.collectAsState() ?: remember { mutableStateOf(null) }
+    val isLoading by noteViewModel.uiState.collectAsState()
 
-    LaunchedEffect(searchTextFlow) {
-        searchTextFlow
-            .debounce(300L)
-            .distinctUntilChanged()
-            .collectLatest { query ->
-                noteViewModel.search(query)
-            }
+    // Handle search text changes with debounce
+    LaunchedEffect(searchText) {
+        noteViewModel.search(searchText)
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            NavigationDrawerContent(navController, drawerState, selectedItem, currentRoute = "home")
+            NavigationDrawerContent(
+                navController = navController,
+                drawerState = drawerState,
+                selectedItem = selectedItem,  // Now passing String
+                onItemSelected = { newItem -> selectedItem = newItem },  // Handle selection changes
+                currentRoute = "home"
+            )
         },
         content = {
             Scaffold(
@@ -86,10 +83,13 @@ fun HomeScreen(
                         ),
                         title = {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(
-                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
-                                    shape = MaterialTheme.shapes.medium
-                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
+                                        shape = MaterialTheme.shapes.medium
+                                    ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -98,17 +98,26 @@ fun HomeScreen(
 
                                 BasicTextField(
                                     value = searchText,
-                                    onValueChange = { searchTextFlow.value = it },
+                                    onValueChange = { searchText = it },
                                     textStyle = TextStyle(
                                         fontSize = 18.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     ),
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f).padding(vertical = 10.dp, horizontal = 8.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(vertical = 10.dp, horizontal = 8.dp),
                                     decorationBox = { innerTextField ->
-                                        Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.CenterStart) {
+                                        Box(
+                                            modifier = Modifier.fillMaxHeight(),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
                                             if (searchText.isEmpty()) {
-                                                Text("Search", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 18.sp)
+                                                Text(
+                                                    "Search",
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                    fontSize = 18.sp
+                                                )
                                             }
                                             innerTextField()
                                         }
@@ -138,29 +147,47 @@ fun HomeScreen(
                     }
                 }
             ) { innerPadding ->
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    if (notes.isEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp), contentAlignment = Alignment.Center) {
-                                val message = if (searchText.isBlank()) "You have no active notes" else "No notes found for '$searchText'"
-                                Text(message, style = MaterialTheme.typography.bodyLarge)
+                if (isLoading.isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        if (notes.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 64.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val message = if (searchText.isBlank()) "You have no active notes"
+                                    else "No notes found for '$searchText'"
+                                    Text(message, style = MaterialTheme.typography.bodyLarge)
+                                }
                             }
-                        }
-                    } else {
-                        items(notes, key = { it.id }) { note ->
-                            NoteCard(
-                                note = note,
-                                onClick = { navController.navigate("note/${note.id}") },
-                                onDelete = { scope.launch { noteViewModel.delete(it) } },
-                                onTogglePin = { scope.launch { noteViewModel.togglePin(it) } },
-                                onToggleArchive = { scope.launch { noteViewModel.toggleArchive(it) } }
-                            )
+                        } else {
+                            items(notes, key = { it.id }) { note ->
+                                NoteCard(
+                                    note = note,
+                                    onClick = { navController.navigate("note/${note.id}") },
+                                    onDelete = { noteViewModel.delete(it) },
+                                    onTogglePin = { noteViewModel.togglePin(it) },
+                                    onToggleArchive = { noteViewModel.toggleArchive(it) }
+                                )
+                            }
                         }
                     }
                 }
@@ -168,7 +195,6 @@ fun HomeScreen(
         }
     )
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -211,7 +237,9 @@ fun NoteCard(
                 ) {
                     Text(
                         text = note.noteTitle,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -278,11 +306,15 @@ fun NoteCard(
                 )
             }
 
+            // Long press menu options
             DropdownMenu(
                 expanded = showOptionsMenu,
                 onDismissRequest = { showOptionsMenu = false },
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp), shape = RoundedCornerShape(12.dp))
+                    .background(
+                        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    )
                     .clip(RoundedCornerShape(12.dp))
             ) {
                 DropdownMenuItem(
@@ -293,7 +325,8 @@ fun NoteCard(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = if (note.isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                            imageVector = if (note.isPinned) Icons.Filled.PushPin
+                            else Icons.Outlined.PushPin,
                             contentDescription = if (note.isPinned) "Unpin" else "Pin"
                         )
                     }
@@ -304,7 +337,12 @@ fun NoteCard(
                         onToggleArchive(note)
                         showOptionsMenu = false
                     },
-                    leadingIcon = { Icon(Icons.Filled.Archive, contentDescription = "Archive") }
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Archive,
+                            contentDescription = "Archive"
+                        )
+                    }
                 )
                 Divider()
                 DropdownMenuItem(
@@ -313,7 +351,13 @@ fun NoteCard(
                         onDelete(note)
                         showOptionsMenu = false
                     },
-                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error) }
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 )
             }
         }

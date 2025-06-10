@@ -5,7 +5,7 @@ import LoginScreen.LoginScreen2
 import NavigationMenu.*
 import Screens.*
 import NoteViewModel.NoteViewModel
-import NoteViewModel.NoteViewModelFactory // Ensure this import points to your updated factory
+import NoteViewModel.NoteViewModelFactory
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,8 +25,8 @@ import Database.NoteDatabase
 import NoteViewModel.AuthViewModel
 import Repo.NoteRepository
 import android.widget.Toast
-import com.google.firebase.auth.FirebaseAuth // Make sure FirebaseAuth is imported
-import com.example.mindscribe.repository.FirestoreRepository // Make sure FirestoreRepository is imported
+import com.google.firebase.auth.FirebaseAuth
+import com.example.mindscribe.repository.FirestoreRepository
 
 
 @Composable
@@ -39,9 +39,14 @@ fun Navigation() {
 
     // Instantiate your repositories and FirebaseAuth once
     val database = remember { NoteDatabase.getDatabase(application) }
-    val noteRepository = remember { NoteRepository(database.noteDao()) }
-    val firestoreRepository = remember { FirestoreRepository() } // Instantiate FirestoreRepository
-    val firebaseAuth = remember { FirebaseAuth.getInstance() } // Get FirebaseAuth instance
+    val firestoreRepository = remember { FirestoreRepository() }
+    val noteRepository = remember {
+        NoteRepository(
+            database.noteDao(), // FIX: Pass noteDao() directly, no named parameter 'localRepo'
+            firestoreRepository
+        )
+    }
+    val firebaseAuth = remember { FirebaseAuth.getInstance() }
 
     // Handle authentication events
     LaunchedEffect(authViewModel) {

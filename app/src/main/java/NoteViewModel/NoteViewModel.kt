@@ -8,8 +8,11 @@ import com.example.mindscribe.repository.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -28,13 +31,19 @@ class NoteViewModel @Inject constructor(
 
     private val _allNotesFlow = combine(
         localRepo.getAllNotesForUser(userId),
-        firestoreRepo.getNotesByUser(userId),
+        if (userId != "guest") firestoreRepo.getNotesByUser(userId) else flowOf(emptyList()),
         _forceRefresh
     ) { localNotes, cloudNotes, _ ->
         mergeNotes(localNotes, cloudNotes)
-    }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
 
-    val activeNotes: LiveData<List<Note>> = _allNotesFlow
+    val allNotes = _allNotesFlow
+
+    val activeNotes = allNotes
         .combine(_searchTextFlow) { notes, searchText ->
             notes.filter { !it.isArchived }
                 .filter {
@@ -42,26 +51,40 @@ class NoteViewModel @Inject constructor(
                             it.noteTitle.contains(searchText, ignoreCase = true) ||
                             it.noteDesc.contains(searchText, ignoreCase = true)
                 }
-                .sortedWith(compareByDescending<Note> { it.isPinned }.thenByDescending { it.timestamp })
-        }.asLiveData()
-
-    val archivedNotes: LiveData<List<Note>> = _allNotesFlow
-        .map { notes -> notes.filter { it.isArchived }.sortedByDescending { it.timestamp } }
+                .sortedWith(
+                    compareByDescending<Note> { it.isPinned }
+                        .thenByDescending { it.timestamp }
+                )
+        }
         .asLiveData()
 
+    val archivedNotes = allNotes
+        .map { notes ->
+            notes.filter { it.isArchived }
+                .sortedByDescending { it.timestamp }
+        }
+        .asLiveData()
+
+    // Add this in the init block after the existing code
     init {
-        val currentUserId = userId
-        if (currentUserId != "guest") {
-            viewModelScope.launch(Dispatchers.IO) {
+        if (userId != "guest") {
+            viewModelScope.launch {
                 try {
-                    firestoreRepo.getNotesByUser(currentUserId).collect { cloudNotes ->
-                        cloudNotes.forEach { note ->
-                            localRepo.insert(note)
-                            _forceRefresh.value = !_forceRefresh.value
+                    // First push local notes to Firestore
+                    localRepo.getAllNotesForUser(userId).collect { localNotes ->
+                        localNotes.forEach { note ->
+                            firestoreRepo.upsertNote(note, userId)
+                        }
+                    }
+
+                    // Then pull from Firestore to ensure latest versions
+                    firestoreRepo.getNotesByUser(userId).collect { cloudNotes ->
+                        cloudNotes.forEach { cloudNote ->
+                            localRepo.insert(cloudNote)
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("NoteViewModel", "Error syncing Firestore notes: ${e.message}", e)
+                    Log.e("NoteViewModel", "Sync error", e)
                     _uiState.value = _uiState.value.copy(
                         toastMessage = "Sync error: ${e.message}"
                     )

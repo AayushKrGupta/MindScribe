@@ -56,4 +56,6 @@ class FirestoreRepository @Inject constructor() {
                 }
             }
     }
+
+    companion object
 }
