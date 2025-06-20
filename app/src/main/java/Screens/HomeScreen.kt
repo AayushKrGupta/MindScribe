@@ -1,7 +1,6 @@
 package Screens
 
-import NoteViewModel.AuthViewModel
-import NoteViewModel.NoteViewModel
+
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -32,6 +31,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import backend.Note
 import com.example.mindscribe.ui.components.NavigationDrawerContent
+import com.example.mindscribe.viewmodel.AuthViewModel
+import com.example.mindscribe.viewmodel.NoteViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -43,8 +46,7 @@ private const val TAG = "NoteAppDebug"
 fun HomeScreen(
     navController: NavController,
     noteViewModel: NoteViewModel,
-    onAccountClick: () -> Unit,
-    authViewModel: AuthViewModel? = null
+    onAccountClick: () -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -53,8 +55,18 @@ fun HomeScreen(
     var selectedItem by remember { mutableStateOf("home") }
     var searchText by remember { mutableStateOf("") }
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
-    val currentUser by authViewModel?.currentUser?.collectAsState() ?: remember { mutableStateOf(null) }
     val isLoading by noteViewModel.uiState.collectAsState()
+
+    // Get current user from FirebaseAuth in NoteViewModel
+    val currentUser by produceState<FirebaseUser?>(initialValue = noteViewModel.auth.currentUser) {
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            value = auth.currentUser
+        }
+        noteViewModel.auth.addAuthStateListener(listener)
+        awaitDispose {
+            noteViewModel.auth.removeAuthStateListener(listener)
+        }
+    }
 
     // Handle search text changes with debounce
     LaunchedEffect(searchText) {
@@ -67,8 +79,8 @@ fun HomeScreen(
             NavigationDrawerContent(
                 navController = navController,
                 drawerState = drawerState,
-                selectedItem = selectedItem,  // Now passing String
-                onItemSelected = { newItem -> selectedItem = newItem },  // Handle selection changes
+                selectedItem = selectedItem,
+                onItemSelected = { newItem -> selectedItem = newItem },
                 currentRoute = "home"
             )
         },

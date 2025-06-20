@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,7 +31,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,9 +175,20 @@ fun LoginScreen(
                     modifier = Modifier
                         .size(20.dp)
                         .clip(CircleShape)
-                        .background(if (isChecked) Color(0xFF00A859) else Color.Gray)
-                        .clickable { isChecked = !isChecked }
-                )
+                        .background(if (isChecked) Color(0xFF00A859) else Color.Gray) // Use a default color for unchecked state
+                        .clickable { isChecked = !isChecked },
+                    contentAlignment = Alignment.Center // Center the content (tick mark) inside the Box
+                ) {
+                    if (isChecked) {
+                        // Only show the tick mark if isChecked is true
+                        Icon(
+                            imageVector = Icons.Default.Check, // Use the built-in Check icon
+                            contentDescription = "Checked",
+                            tint = Color.White, // Set the color of the tick mark
+                            modifier = Modifier.size(16.dp) // Adjust size as needed
+                        )
+                    }
+                }
             }
         }
     }

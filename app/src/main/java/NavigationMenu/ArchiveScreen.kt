@@ -3,7 +3,7 @@
 // If your 'Screens' folder is directly under 'app/src/main/java', this is correct.
 package Screens
 
-import NoteViewModel.NoteViewModel
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.colorResource // Ensure this is imported for colorResource
+import com.example.mindscribe.viewmodel.NoteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

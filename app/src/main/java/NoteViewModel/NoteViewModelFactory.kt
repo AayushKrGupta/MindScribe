@@ -1,24 +1,27 @@
-// src/main/java/com/example/mindscribe/viewmodel/NoteViewModelFactory.kt
-package NoteViewModel
+package com.example.mindscribe.viewmodel
 
+import Repo.NoteRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import Repo.NoteRepository
-import com.example.mindscribe.repository.FirestoreRepository // Import FirestoreRepository
-import com.google.firebase.auth.FirebaseAuth // Import FirebaseAuth
+import com.example.mindscribe.repository.FirestoreRepository
+import com.google.firebase.auth.FirebaseAuth
+import javax.inject.Inject
 
-// The factory must now accept all dependencies NoteViewModel needs
-class NoteViewModelFactory(
+class NoteViewModelFactory @Inject constructor(
     private val localRepo: NoteRepository,
-    private val firestoreRepo: FirestoreRepository, // NEW: Add FirestoreRepository
-    private val firebaseAuth: FirebaseAuth // NEW: Add FirebaseAuth
+    private val firestoreRepo: FirestoreRepository,
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModelProvider.Factory {
+
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(NoteViewModel::class.java)) {
-            // Pass all three dependencies to the NoteViewModel constructor
-            return NoteViewModel(localRepo, firestoreRepo, firebaseAuth) as T
+            return NoteViewModel(
+                localRepo = localRepo,
+                firestoreRepo = firestoreRepo,
+                auth = firebaseAuth
+            ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }

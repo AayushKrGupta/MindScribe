@@ -5,91 +5,118 @@ import android.util.Log
 import backend.Note
 import com.example.mindscribe.repository.FirestoreRepository
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class NoteRepository @Inject constructor(
     private val noteDao: NoteDao,
     private val firestoreRepo: FirestoreRepository
 ) {
+    private companion object {
+        const val TAG = "NoteRepository"
+    }
 
-    fun getAllNotesForUser(userId: String): Flow<List<Note>> = noteDao.getAllNotesForUser(userId)
+    // Local DB operations
+    fun getAllNotesForUser(userId: String): Flow<List<Note>> =
+        noteDao.getAllNotesForUser(userId)
+            .catch { e -> Log.e(TAG, "Local DB read error", e) }
 
-    suspend fun getNoteByIdAndUser(id: String, userId: String): Note? = noteDao.getNoteByIdAndUser(id, userId)
-
-    suspend fun getNoteById(id: String): Note? = noteDao.getNoteById(id)
+    suspend fun getNoteById(id: String): Note? =
+        noteDao.getNoteById(id)
 
     suspend fun insert(note: Note) {
-        // Save locally first for immediate UI update
-        noteDao.insert(note)
+        val noteToSave = note.copy(
+            timestamp = if (note.timestamp == 0L) System.currentTimeMillis() else note.timestamp
+        )
 
-        // If logged in, sync to Firestore
-        if (note.userId != "guest") {
-            try {
-                firestoreRepo.upsertNote(note, note.userId)
-            } catch (e: Exception) {
-                // If Firestore fails, keep the local version
-                Log.e("NoteRepository", "Failed to sync note to Firestore", e)
+        try {
+            // Local first strategy
+            noteDao.insert(noteToSave)
+
+            // Sync to cloud if authenticated
+            if (noteToSave.userId != "guest") {
+                firestoreRepo.upsertNote(noteToSave, noteToSave.userId)
+                    .also { Log.d(TAG, "Note upserted to Firestore: ${noteToSave.id}") }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Insert failed", e)
+            throw Exception("Failed to save note")
         }
     }
 
     suspend fun update(note: Note) {
         val updatedNote = note.copy(timestamp = System.currentTimeMillis())
-        noteDao.update(updatedNote)
 
-        if (note.userId != "guest") {
-            try {
-                firestoreRepo.upsertNote(updatedNote, note.userId)
-            } catch (e: Exception) {
-                Log.e("NoteRepository", "Failed to update note in Firestore", e)
+        try {
+            noteDao.update(updatedNote)
+            if (updatedNote.userId != "guest") {
+                firestoreRepo.upsertNote(updatedNote, updatedNote.userId)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Update failed", e)
+            throw Exception("Failed to update note")
         }
     }
 
     suspend fun delete(note: Note) {
-        noteDao.delete(note)
-
-        if (note.userId != "guest") {
-            try {
+        try {
+            noteDao.delete(note)
+            if (note.userId != "guest") {
                 firestoreRepo.deleteNote(note.id)
-            } catch (e: Exception) {
-                Log.e("NoteRepository", "Failed to delete note from Firestore", e)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Delete failed", e)
+            throw Exception("Failed to delete note")
         }
     }
 
+    // Search functionality
     fun searchNotesForUser(query: String, userId: String): Flow<List<Note>> =
         noteDao.searchNotesForUser(query, userId)
+            .catch { e -> Log.e(TAG, "Search failed", e) }
 
-    suspend fun deleteAllNotesForUser(userId: String) = noteDao.deleteAllNotesForUser(userId)
-
-    suspend fun getNoteImmediately(id: String, userId: String): Note? {
-        return noteDao.getNoteByIdAndUser(id, userId)
-    }
-
+    // Sync improvements
     suspend fun syncWithCloud(userId: String) {
         if (userId == "guest") return
 
         try {
-            // Push local changes to cloud
-            noteDao.getAllNotesForUser(userId).collect { localNotes ->
-                localNotes.forEach { note ->
-                    firestoreRepo.upsertNote(note, userId)
-                }
-            }
+            Log.d(TAG, "Starting sync for user: $userId")
 
-            // Pull cloud changes to local
-            firestoreRepo.getNotesByUser(userId).collect { cloudNotes ->
-                cloudNotes.forEach { note ->
-                    // Only insert if note doesn't exist or is newer
-                    val localNote = noteDao.getNoteById(note.id)
-                    if (localNote == null || note.timestamp > localNote.timestamp) {
-                        noteDao.insert(note)
+            // 1. Push local changes to cloud
+            noteDao.getAllNotesForUser(userId).collect { localNotes ->
+                localNotes.forEach { localNote ->
+                    try {
+                        val cloudNote = firestoreRepo.getNoteById(localNote.id)
+                        if (cloudNote == null || localNote.timestamp > cloudNote.timestamp) {
+                            firestoreRepo.upsertNote(localNote, userId)
+                            Log.d(TAG, "Pushed local note to cloud: ${localNote.id}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to push note ${localNote.id}", e)
                     }
                 }
             }
+
+            // 2. Pull cloud changes to local
+            firestoreRepo.getNotesByUser(userId).collect { cloudNotes ->
+                cloudNotes.forEach { cloudNote ->
+                    try {
+                        val localNote = noteDao.getNoteById(cloudNote.id)
+                        if (localNote == null || cloudNote.timestamp > localNote.timestamp) {
+                            noteDao.insert(cloudNote)
+                            Log.d(TAG, "Pulled cloud note to local: ${cloudNote.id}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to pull note ${cloudNote.id}", e)
+                    }
+                }
+            }
+
+            Log.d(TAG, "Sync completed for user: $userId")
         } catch (e: Exception) {
+            Log.e(TAG, "Sync failed for user: $userId", e)
             throw Exception("Sync failed: ${e.message}")
         }
     }

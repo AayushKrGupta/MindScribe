@@ -1,11 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
-    id("org.jetbrains.kotlin.plugin.parcelize") // Keep this as direct ID since we have it in libs.plugins
+    id("org.jetbrains.kotlin.plugin.parcelize")
     id("com.google.devtools.ksp")
-
+    id("com.google.dagger.hilt.android")
+    kotlin("kapt")
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -19,6 +20,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunnerArguments["runnerBuilder"] = "de.mannodermaus.junit5.AndroidJUnit5Builder"
     }
 
     buildTypes {
@@ -32,12 +34,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 
     buildFeatures {
@@ -47,6 +49,12 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 dependencies {
@@ -55,7 +63,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM
+    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
@@ -64,29 +72,30 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.runtime.livedata)
-    implementation(libs.androidx.runtime.saveable)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.runtime.saveable)
+    implementation(libs.androidx.material3.windowsize)
 
     // Room
     implementation(libs.androidx.room.runtime)
-    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.analytics)
 
-    // Google Sign-in
+    // Google Services
     implementation(libs.play.services.auth)
-
-    // Credentials
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Coil
     implementation(libs.coil.compose)
@@ -97,6 +106,12 @@ dependencies {
     // Splash Screen
     implementation(libs.androidx.splashscreen)
 
+    // Hilt
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -105,10 +120,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(libs.androidx.material3.windowsize)
-    implementation ("com.google.firebase:firebase-firestore-ktx:24.9.1")  // Latest version
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-    implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
-    implementation("com.google.firebase:firebase-analytics")
+}
 
+kapt {
+    correctErrorTypes = true
 }

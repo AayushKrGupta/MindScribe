@@ -1,6 +1,5 @@
 package Screens
 
-import NoteViewModel.NoteViewModel
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -39,6 +38,7 @@ import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
 import com.example.mindscribe.R
+import com.example.mindscribe.viewmodel.NoteViewModel
 import java.util.UUID // Import UUID for generating local IDs
 
 private const val TAG = "NoteAppDebug"
@@ -188,7 +188,7 @@ fun NotesScreen(
 
         coroutineScope.launch {
             // NoteViewModel's insert method now handles both insert and update (upsert) logic
-            noteViewModel.insert(noteToSave)
+            noteViewModel.upsertNote(noteToSave)
             Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
             isSaving = false
             navController.popBackStack()

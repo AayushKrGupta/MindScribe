@@ -14,8 +14,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.example.mindscribe.ui.theme.MindScribeTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 
+@AndroidEntryPoint  // <-- THIS IS THE CRUCIAL ADDITION
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -28,13 +30,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MindScribeTheme {
                 LaunchedEffect(Unit) {
-                    delay(2000L) // Splash screen delay
+                    delay(2000L)
                     contentReady = true
                 }
 
                 if (contentReady) {
                     RequestAudioPermission {
-                        // Call the main app navigation
                         Navigation()
                     }
                 }

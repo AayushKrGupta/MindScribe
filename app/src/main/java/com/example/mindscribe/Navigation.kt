@@ -4,9 +4,12 @@ import LoginScreen.LoginScreen
 import LoginScreen.LoginScreen2
 import NavigationMenu.*
 import Screens.*
-import NoteViewModel.NoteViewModel
-import NoteViewModel.NoteViewModelFactory
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,64 +17,45 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.mindscribe.ui.screens.ReminderScreen
 import com.example.mindscribe.ui.screens.SettingsScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import android.app.Application
-import androidx.compose.ui.platform.LocalContext
-import Database.NoteDatabase
-import NoteViewModel.AuthViewModel
-import Repo.NoteRepository
-import android.widget.Toast
+import com.example.mindscribe.viewmodel.AuthViewModel
+import com.example.mindscribe.viewmodel.NoteViewModel
 import com.google.firebase.auth.FirebaseAuth
+import android.widget.Toast
+import androidx.compose.runtime.remember
 import com.example.mindscribe.repository.FirestoreRepository
-
+import com.example.mindscribe.viewmodel.AuthViewModel.AuthEvent
 
 @Composable
 fun Navigation() {
     val navController = rememberNavController()
-    val authViewModel: AuthViewModel = viewModel()
+    val authViewModel: AuthViewModel = hiltViewModel()
     val currentUser by authViewModel.currentUser.collectAsState()
     val context = LocalContext.current
-    val application = context.applicationContext as Application
-
-    // Instantiate your repositories and FirebaseAuth once
-    val database = remember { NoteDatabase.getDatabase(application) }
-    val firestoreRepository = remember { FirestoreRepository() }
-    val noteRepository = remember {
-        NoteRepository(
-            database.noteDao(), // FIX: Pass noteDao() directly, no named parameter 'localRepo'
-            firestoreRepository
-        )
-    }
-    val firebaseAuth = remember { FirebaseAuth.getInstance() }
 
     // Handle authentication events
     LaunchedEffect(authViewModel) {
         authViewModel.authEvents.collect { event ->
             when (event) {
-                is AuthViewModel.AuthEvent.SignInSuccess -> {
+                is AuthEvent.SignInSuccess -> {
                     navController.navigate("Home") {
                         popUpTo("Login") { inclusive = true }
                         launchSingleTop = true
                     }
                 }
-                is AuthViewModel.AuthEvent.SignInFailure -> {
+                is AuthEvent.SignInFailure -> {
                     Toast.makeText(
                         context,
                         "Sign in failed: ${event.exception.message}",
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                is AuthViewModel.AuthEvent.SignOutSuccess -> {
+                is AuthEvent.SignOutSuccess -> {
                     navController.navigate("Login") {
                         popUpTo("Login2") { inclusive = true }
                         launchSingleTop = true
                     }
                 }
-                is AuthViewModel.AuthEvent.SignOutFailure -> {
+                is AuthEvent.SignOutFailure -> {
                     Toast.makeText(
                         context,
                         "Sign out failed: ${event.exception.message}",
@@ -84,12 +68,12 @@ fun Navigation() {
 
     NavHost(
         navController = navController,
-        startDestination = "Home"
+        startDestination = if (currentUser != null) "Home" else "Login"
     ) {
         composable("Login") {
             LoginScreen(
                 navController = navController,
-                onGoogleSignIn = { idToken: String->
+                onGoogleSignIn = { idToken ->
                     authViewModel.handleGoogleSignInResult(idToken)
                 }
             )
@@ -111,30 +95,20 @@ fun Navigation() {
         }
 
         composable("Home") {
-            // No userId needed here as NoteViewModelFactory already injects FirebaseAuth,
-            // and NoteViewModel gets userId from auth.currentUser?.uid internally.
-            val homeViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(
-                    noteRepository,
-                    firestoreRepository,
-                    firebaseAuth
-                )
-            )
+            val noteViewModel: NoteViewModel = hiltViewModel()
 
             HomeScreen(
                 navController = navController,
-                noteViewModel = homeViewModel,
+                noteViewModel = noteViewModel,
                 onAccountClick = {
                     if (currentUser != null) {
                         navController.navigate("Login2")
                     } else {
                         navController.navigate("Login")
                     }
-                },
-                authViewModel = authViewModel // Keep this for HomeScreen's UI logic
+                }
             )
         }
-
 
         composable(
             "note/{noteId}",
@@ -144,17 +118,10 @@ fun Navigation() {
                 nullable = true
             })
         ) { backStackEntry ->
-            // No userId needed here for the factory, as NoteViewModel gets it internally.
-            val notesViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(
-                    noteRepository,
-                    firestoreRepository,
-                    firebaseAuth
-                )
-            )
+            val noteViewModel: NoteViewModel = hiltViewModel()
             NotesScreen(
                 navController = navController,
-                noteViewModel = notesViewModel,
+                noteViewModel = noteViewModel,
                 noteId = backStackEntry.arguments?.getString("noteId")
             )
         }
@@ -162,15 +129,8 @@ fun Navigation() {
         composable("images") { ImagesScreen(navController) }
         composable("reminders") { ReminderScreen(navController) }
         composable("archive") {
-            // No userId needed here for the factory, as NoteViewModel gets it internally.
-            val archiveViewModel: NoteViewModel = viewModel(
-                factory = NoteViewModelFactory(
-                    noteRepository,
-                    firestoreRepository,
-                    firebaseAuth
-                )
-            )
-            ArchiveScreen(navController = navController, noteViewModel = archiveViewModel)
+            val noteViewModel: NoteViewModel = hiltViewModel()
+            ArchiveScreen(navController = navController, noteViewModel = noteViewModel)
         }
         composable("settings") { SettingsScreen(navController) }
         composable("about") { AboutScreen(navController) }
