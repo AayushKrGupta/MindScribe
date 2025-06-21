@@ -46,7 +46,7 @@ fun NavigationDrawerContent(
     )
 
     ModalDrawerSheet(
-        modifier = Modifier.fillMaxWidth(0.75f)
+        modifier = Modifier.fillMaxWidth(0.70f)
     ) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))

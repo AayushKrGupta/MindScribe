@@ -1,6 +1,9 @@
 package Screens
 
-
+// Make sure you have these imports:
+import android.R.attr.id
+import androidx.compose.ui.res.colorResource
+import com.example.mindscribe.R // Replace with your actual package name
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -10,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -21,6 +25,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
@@ -36,8 +41,10 @@ import com.example.mindscribe.viewmodel.NoteViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.launch
+import ui.components.colorPalette
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.res.colorResource
 
 private const val TAG = "NoteAppDebug"
 
@@ -90,58 +97,75 @@ fun HomeScreen(
                 topBar = {
                     CenterAlignedTopAppBar(
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            containerColor = MaterialTheme.colorScheme.surface,
                             titleContentColor = MaterialTheme.colorScheme.primary,
                         ),
                         title = {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.1f),
-                                        shape = MaterialTheme.shapes.medium
-                                    ),
+                                    .padding(horizontal = 16.dp)
+                                    .clip(RoundedCornerShape(26.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(horizontal = 12.dp, vertical = 1.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                                IconButton(
+                                    onClick = { scope.launch { drawerState.open() } },
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Menu,
+                                        contentDescription = "Menu",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
 
-                                BasicTextField(
-                                    value = searchText,
-                                    onValueChange = { searchText = it },
-                                    textStyle = TextStyle(
-                                        fontSize = 18.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    ),
-                                    singleLine = true,
+                                Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .padding(vertical = 10.dp, horizontal = 8.dp),
-                                    decorationBox = { innerTextField ->
-                                        Box(
-                                            modifier = Modifier.fillMaxHeight(),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) {
-                                            if (searchText.isEmpty()) {
-                                                Text(
-                                                    "Search",
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                                    fontSize = 18.sp
-                                                )
+                                        .padding(horizontal = 8.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    BasicTextField(
+                                        value = searchText,
+                                        onValueChange = { searchText = it },
+                                        textStyle = TextStyle(
+                                            fontSize = 16.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        decorationBox = { innerTextField ->
+                                            Box(
+                                                modifier = Modifier.fillMaxHeight(),
+                                                contentAlignment = Alignment.CenterStart
+                                            ) {
+                                                if (searchText.isEmpty()) {
+                                                    Text(
+                                                        "Search",
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                        fontSize = 16.sp
+                                                    )
+                                                }
+                                                innerTextField()
                                             }
-                                            innerTextField()
                                         }
-                                    }
-                                )
+                                    )
+                                }
 
-                                IconButton(onClick = onAccountClick) {
+                                IconButton(
+                                    onClick = onAccountClick,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
                                     Icon(
                                         imageVector = Icons.Filled.AccountCircle,
                                         contentDescription = "Account",
                                         tint = if (currentUser != null) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(28.dp)
                                     )
                                 }
                             }
@@ -152,10 +176,22 @@ fun HomeScreen(
                 floatingActionButton = {
                     FloatingActionButton(
                         onClick = { navController.navigate("note/-1") },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = colorResource(id = R.color.black),
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                clip = true
+                            )
                     ) {
-                        Icon(Icons.Filled.EditNote, contentDescription = "Add Note")
+                        Icon(
+                            Icons.Filled.EditNote,
+                            contentDescription = "Add Note",
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
             ) { innerPadding ->

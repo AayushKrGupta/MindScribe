@@ -25,6 +25,7 @@ import com.example.mindscribe.R
 import com.google.firebase.auth.FirebaseAuth
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import androidx.compose.runtime.*
+import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 
 
@@ -36,6 +37,7 @@ fun LoginScreen2(navController: NavController, onSignOut: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
 
     val currentUser = auth.currentUser
+    val profileImageUrl = currentUser?.photoUrl?.toString()
 
     val gso = remember {
         com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -82,7 +84,9 @@ fun LoginScreen2(navController: NavController, onSignOut: () -> Unit) {
             Spacer(modifier = Modifier.height(40.dp))
 
             Image(
-                painter = painterResource(id = R.drawable.userprofile),
+                painter = rememberAsyncImagePainter(
+                    model = profileImageUrl ?: R.drawable.userprofile
+                ),
                 contentDescription = "Profile Picture",
                 modifier = Modifier
                     .size(70.dp)

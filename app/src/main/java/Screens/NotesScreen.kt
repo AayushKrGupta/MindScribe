@@ -429,8 +429,10 @@ fun NotesBottomAppBar(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onSaveClick,
-                containerColor = BottomAppBarDefaults.bottomAppBarFabColor,
+                containerColor = colorResource(id = R.color.black), // Use the exact name from colors.xml
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
+
             ) {
                 Icon(Icons.Filled.Check, "Save Note")
             }

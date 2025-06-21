@@ -19,10 +19,7 @@ import com.example.mindscribe.ui.screens.ReminderScreen
 import com.example.mindscribe.ui.screens.SettingsScreen
 import com.example.mindscribe.viewmodel.AuthViewModel
 import com.example.mindscribe.viewmodel.NoteViewModel
-import com.google.firebase.auth.FirebaseAuth
 import android.widget.Toast
-import androidx.compose.runtime.remember
-import com.example.mindscribe.repository.FirestoreRepository
 import com.example.mindscribe.viewmodel.AuthViewModel.AuthEvent
 
 @Composable
@@ -38,7 +35,7 @@ fun Navigation() {
             when (event) {
                 is AuthEvent.SignInSuccess -> {
                     navController.navigate("Home") {
-                        popUpTo("Login") { inclusive = true }
+                        popUpTo("Home") { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -50,8 +47,9 @@ fun Navigation() {
                     ).show()
                 }
                 is AuthEvent.SignOutSuccess -> {
-                    navController.navigate("Login") {
-                        popUpTo("Login2") { inclusive = true }
+                    // After sign out, stay on Home screen as guest
+                    navController.navigate("Home") {
+                        popUpTo("Home") { inclusive = true }
                         launchSingleTop = true
                     }
                 }
@@ -66,9 +64,10 @@ fun Navigation() {
         }
     }
 
+    // Always start with Home screen
     NavHost(
         navController = navController,
-        startDestination = if (currentUser != null) "Home" else "Login"
+        startDestination = "Home"
     ) {
         composable("Login") {
             LoginScreen(
@@ -86,8 +85,9 @@ fun Navigation() {
                     onSignOut = { authViewModel.signOut() }
                 )
             } else {
+                // If somehow got here without being logged in, go back to home
                 LaunchedEffect(Unit) {
-                    navController.navigate("Login") {
+                    navController.navigate("Home") {
                         popUpTo("Login2") { inclusive = true }
                     }
                 }
