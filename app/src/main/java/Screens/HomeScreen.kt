@@ -1,10 +1,7 @@
 package Screens
 
-// Make sure you have these imports:
-import android.R.attr.id
-import androidx.compose.ui.res.colorResource
-import com.example.mindscribe.R // Replace with your actual package name
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,17 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import backend.Note
+import com.example.mindscribe.R
 import com.example.mindscribe.ui.components.NavigationDrawerContent
-import com.example.mindscribe.viewmodel.AuthViewModel
 import com.example.mindscribe.viewmodel.NoteViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.launch
-import ui.components.colorPalette
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 
 private const val TAG = "NoteAppDebug"
 
@@ -60,16 +56,22 @@ fun HomeScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val context = LocalContext.current
 
     var selectedItem by remember { mutableStateOf("home") }
     var searchText by remember { mutableStateOf("") }
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
-    val isLoading by noteViewModel.uiState.collectAsState()
+    val uiState by noteViewModel.uiState.collectAsState()
 
-    // Get current user from FirebaseAuth in NoteViewModel
+    // Current user state with auth listener
     val currentUser by produceState<FirebaseUser?>(initialValue = noteViewModel.auth.currentUser) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
             value = auth.currentUser
+            if (value != null) {
+                scope.launch {
+                    noteViewModel.syncNotes()
+                }
+            }
         }
         noteViewModel.auth.addAuthStateListener(listener)
         awaitDispose {
@@ -77,9 +79,24 @@ fun HomeScreen(
         }
     }
 
-    // Handle search text changes with debounce
+    // Initial sync
+    LaunchedEffect(Unit) {
+        if (currentUser != null) {
+            noteViewModel.syncNotes()
+        }
+    }
+
+    // Search handling
     LaunchedEffect(searchText) {
         noteViewModel.search(searchText)
+    }
+
+    // Toast message handling
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            noteViewModel.clearToast()
+        }
     }
 
     ModalNavigationDrawer(
@@ -197,14 +214,13 @@ fun HomeScreen(
                     }
                 }
             ) { innerPadding ->
-                if (isLoading.isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
-                } else {
+
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier
@@ -215,7 +231,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        if (notes.isEmpty()) {
+                        if (notes.isEmpty() && !uiState.isLoading) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Box(
                                     modifier = Modifier
@@ -381,7 +397,6 @@ fun NoteCard(
                 )
             }
 
-            // Long press menu options
             DropdownMenu(
                 expanded = showOptionsMenu,
                 onDismissRequest = { showOptionsMenu = false },

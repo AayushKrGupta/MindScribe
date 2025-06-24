@@ -1,9 +1,11 @@
 package com.example.mindscribe.viewmodel
 
+
+import Repo.FirestoreRepository
 import Repo.NoteRepository
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.mindscribe.repository.FirestoreRepository
+
 import com.google.firebase.auth.FirebaseAuth
 import javax.inject.Inject
 

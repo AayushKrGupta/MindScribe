@@ -3,9 +3,11 @@ package Screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,9 +39,10 @@ import kotlinx.coroutines.launch
 import android.Manifest
 import androidx.compose.runtime.saveable.rememberSaveable
 import java.io.File
+import java.io.FileOutputStream
 import com.example.mindscribe.R
 import com.example.mindscribe.viewmodel.NoteViewModel
-import java.util.UUID // Import UUID for generating local IDs
+import java.util.UUID
 
 private const val TAG = "NoteAppDebug"
 
@@ -47,12 +50,11 @@ private const val TAG = "NoteAppDebug"
 @Composable
 fun NotesScreen(
     navController: NavController,
-    noteViewModel: NoteViewModel, // ViewModel is provided by NavHost
-    noteId: String? // Changed type to String?
+    noteViewModel: NoteViewModel,
+    noteId: String?
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-
     val currentUserId = remember { noteViewModel.userId }
 
     // State variables
@@ -63,98 +65,72 @@ fun NotesScreen(
     var isSaving by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
-    var currentNoteId by rememberSaveable { mutableStateOf(noteId ?: "") } // Store the ID here
+    var currentNoteId by rememberSaveable { mutableStateOf(noteId ?: "") }
     var selectedColorResId by rememberSaveable { mutableStateOf(R.color.note_color_default) }
 
     val recorder = remember { MediaRecorderHelper(context) }
 
+
+    // Record audio permission launcher
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted: Boolean ->
+    ) { isGranted ->
         if (isGranted) {
-            Log.d(TAG, "RECORD_AUDIO permission granted.")
             val path = recorder.startRecording()
-            if (path != null) {
-                recordingFilePath = path
-                isRecording = true
-                Toast.makeText(context, "Recording...", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, "Failed to start recording.", Toast.LENGTH_LONG).show()
-                isRecording = false
-            }
+            recordingFilePath = path
+            isRecording = path != null
+            Toast.makeText(context, if (path != null) "Recording..." else "Failed to start recording",
+                Toast.LENGTH_SHORT).show()
         } else {
-            Toast.makeText(context, "Audio recording permission denied.", Toast.LENGTH_SHORT).show()
-            isRecording = false
+            Toast.makeText(context, "Audio recording permission denied", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Effect to load existing note data
-    LaunchedEffect(noteId, currentUserId) { // Use noteId (String?) and currentUserId as keys
-        Log.d(TAG, "NotesScreen: LaunchedEffect for noteId: $noteId, userId: $currentUserId")
-        if (!noteId.isNullOrBlank()) { // Check if noteId is a valid non-empty string
+
+    // Add this function inside NotesScreen but before LaunchedEffect
+    fun resetNoteState() {
+        currentNoteId = ""
+        titleText = ""
+        noteText = ""
+        selectedImageUris = emptyList()
+        recordingFilePath = null
+        selectedColorResId = R.color.note_color_default
+    }
+    // Note loading logic
+    LaunchedEffect(noteId, currentUserId) {
+        Log.d(TAG, "Loading note data for ID: $noteId")
+
+        if (!noteId.isNullOrBlank()) {
             noteViewModel.getNoteById(noteId)?.let { note ->
                 if (note.userId == currentUserId) {
-                    Log.d(TAG, "NotesScreen: Loaded existing note: ${note.id}, Title: ${note.noteTitle}")
-                    currentNoteId = note.id // Make sure the internal ID state is updated
+                    currentNoteId = note.id
                     titleText = note.noteTitle
                     noteText = note.noteDesc
-                    note.imageUrls?.let { uriStringList ->
-                        selectedImageUris = uriStringList.mapNotNull { uriString ->
+                    selectedColorResId = note.colorResId
+                    recordingFilePath = note.audioPath
+
+                    note.imageUrls?.let { uriStrings ->
+                        selectedImageUris = uriStrings.mapNotNull { uriString ->
                             try {
-                                val uri = Uri.parse(uriString)
-                                context.contentResolver.takePersistableUriPermission(
-                                    uri,
-                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                )
-                                Log.d(TAG, "NotesScreen: Re-granted permission for URI: $uri")
-                                uri
+                                Uri.parse(uriString)
                             } catch (e: Exception) {
-                                Log.e(TAG, "NotesScreen: Error parsing or re-granting permission for URI: $uriString - ${e.message}")
                                 null
                             }
                         }
-                        Log.d(TAG, "NotesScreen: Loaded image URIs: ${selectedImageUris.size}")
                     } ?: run {
                         selectedImageUris = emptyList()
                     }
-
-                    note.audioPath?.let { path ->
-                        recordingFilePath = path
-                        Log.d(TAG, "NotesScreen: Loaded audio path: $path")
-                    } ?: run {
-                        recordingFilePath = null
-                    }
-                    selectedColorResId = note.colorResId
                 } else {
-                    Log.w(TAG, "NotesScreen: Note $noteId found but does not belong to current user $currentUserId. Treating as new note.")
-                    // Reset for new note creation
-                    currentNoteId = ""
-                    titleText = ""
-                    noteText = ""
-                    selectedImageUris = emptyList()
-                    recordingFilePath = null
-                    selectedColorResId = R.color.note_color_default
+                    resetNoteState()
                 }
             } ?: run {
-                Log.d(TAG, "NotesScreen: Note with ID $noteId not found.")
-                // If note not found, clear existing data
-                currentNoteId = ""
-                titleText = ""
-                noteText = ""
-                selectedImageUris = emptyList()
-                recordingFilePath = null
-                selectedColorResId = R.color.note_color_default
+                resetNoteState()
             }
         } else {
-            // For new notes (noteId is null or blank), clear and prepare for new entry
-            currentNoteId = "" // Ensure it's empty for a new note to trigger ID generation
-            titleText = ""
-            noteText = ""
-            selectedImageUris = emptyList()
-            recordingFilePath = null
-            selectedColorResId = R.color.note_color_default
+            resetNoteState()
         }
     }
+
 
     DisposableEffect(Unit) {
         onDispose {
@@ -172,22 +148,39 @@ fun NotesScreen(
 
         isSaving = true
 
-        // If currentNoteId is empty, generate a new one. Otherwise, use the existing one.
+        // Process image URIs - copy Photo Picker content to app storage
+        val savedImageUris = selectedImageUris.map { uri ->
+            if (uri.toString().startsWith("content://media/picker")) {
+                try {
+                    val file = File(context.filesDir, "image_${System.currentTimeMillis()}.jpg")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(file).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Uri.fromFile(file).toString()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error saving image", e)
+                    uri.toString()
+                }
+            } else {
+                uri.toString()
+            }
+        }
+
         val idToUse = if (currentNoteId.isEmpty()) UUID.randomUUID().toString() else currentNoteId
 
         val noteToSave = Note(
-            id = idToUse, // Use the generated/existing String ID
+            id = idToUse,
             noteTitle = titleText.trim(),
             noteDesc = noteText.trim(),
-            imageUrls = selectedImageUris.map { it.toString() },
+            imageUrls = savedImageUris,
             audioPath = recordingFilePath,
             colorResId = selectedColorResId,
             userId = currentUserId
-            // isPinned and isArchived will use their default values if not explicitly handled
         )
 
         coroutineScope.launch {
-            // NoteViewModel's insert method now handles both insert and update (upsert) logic
             noteViewModel.upsertNote(noteToSave)
             Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
             isSaving = false
@@ -213,12 +206,9 @@ fun NotesScreen(
                 isRecording = isRecording,
                 onToggleRecording = {
                     if (isRecording) {
-                        val path = recorder.stopRecording()
-                        if (path != null) {
-                            recordingFilePath = path
-                            Toast.makeText(context, "Recording saved!", Toast.LENGTH_SHORT).show()
-                        }
+                        recorder.stopRecording()
                         isRecording = false
+                        Toast.makeText(context, "Recording saved", Toast.LENGTH_SHORT).show()
                     } else {
                         recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     }
@@ -328,7 +318,6 @@ fun NotesTopAppBar(
     onExit: () -> Unit,
     backgroundColor: Color
 ) {
-    val context = LocalContext.current
     var menuExpanded by remember { mutableStateOf(false) }
 
     TopAppBar(
@@ -352,17 +341,11 @@ fun NotesTopAppBar(
             ) {
                 DropdownMenuItem(
                     text = { Text("Sort by Date") },
-                    onClick = {
-                        menuExpanded = false
-                        Toast.makeText(context, "Sorting by Date", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { menuExpanded = false }
                 )
                 DropdownMenuItem(
                     text = { Text("Sort by Name") },
-                    onClick = {
-                        menuExpanded = false
-                        Toast.makeText(context, "Sorting by Name", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { menuExpanded = false }
                 )
             }
         }
@@ -381,25 +364,41 @@ fun NotesBottomAppBar(
     onColorPickClick: () -> Unit,
     selectedColor: Color
 ) {
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
+    // Photo Picker for Android 13+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia()
+    ) { uris ->
         if (uris.isNotEmpty()) {
             onImagesSelected(uris)
+            Toast.makeText(context, "${uris.size} images selected", Toast.LENGTH_SHORT).show()
+        }
+    }
 
-            for (uri in uris) {
-                try {
+    // Traditional file picker for older versions
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            try {
+                uris.forEach { uri ->
                     context.contentResolver.takePersistableUriPermission(
                         uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "Failed to take persistable permission for URI: $uri", e)
                 }
+                onImagesSelected(uris)
+                Toast.makeText(context, "${uris.size} images selected", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error taking permissions", e)
             }
-            Toast.makeText(context, "${uris.size} Images Selected", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun pickImages() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         } else {
-            Toast.makeText(context, "No Images Selected", Toast.LENGTH_SHORT).show()
+            galleryLauncher.launch("image/*")
         }
     }
 
@@ -413,7 +412,7 @@ fun NotesBottomAppBar(
                 )
             }
 
-            IconButton(onClick = { galleryLauncher.launch("image/*") }) {
+            IconButton(onClick = { pickImages() }) {
                 Icon(Icons.Filled.Image, contentDescription = "Add Image")
             }
 
@@ -429,10 +428,9 @@ fun NotesBottomAppBar(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onSaveClick,
-                containerColor = colorResource(id = R.color.black), // Use the exact name from colors.xml
+                containerColor = colorResource(id = R.color.black),
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 elevation = FloatingActionButtonDefaults.bottomAppBarFabElevation()
-
             ) {
                 Icon(Icons.Filled.Check, "Save Note")
             }

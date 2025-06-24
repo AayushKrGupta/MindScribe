@@ -83,78 +83,90 @@ fun LoginScreen2(navController: NavController, onSignOut: () -> Unit) {
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
+            // Bigger profile picture
             Image(
                 painter = rememberAsyncImagePainter(
                     model = profileImageUrl ?: R.drawable.userprofile
                 ),
                 contentDescription = "Profile Picture",
                 modifier = Modifier
-                    .size(70.dp)
+                    .size(150.dp)  // Increased from 70dp to 150dp
                     .clip(CircleShape)
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = currentUser?.displayName ?: "User Name",
-                fontSize = 20.sp,
+                fontSize = 22.sp,  // Slightly larger font
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = currentUser?.email ?: "user@example.com",
-                fontSize = 14.sp,
+                fontSize = 16.sp,  // Slightly larger font
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(100.dp))  // Pushes content to center
 
-            AccountOption(
-                iconRes = R.drawable.logout,
-                text = "Log out",
-                onClick = performLogout
-            )
+            // Centered buttons column
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Logout button
+                Button(
+                    onClick = performLogout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red.copy(alpha = 0.9f)
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.logout),
+                        contentDescription = "Log out",
+                        modifier = Modifier.size(24.dp))
 
-            AccountOption(
-                iconRes = R.drawable.logoutuser,
-                text = "Delete my account",
-                onClick = {
-                    Toast.makeText(context, "Account deletion not implemented yet. Requires re-authentication.", Toast.LENGTH_LONG).show()
-                    // TODO: Implement Account Deletion - This is a more complex operation.
-                    // It requires the user to re-authenticate very recently before deleting their account.
-                    // You would typically re-prompt for password or Google sign-in here.
-                    // After re-authentication, call currentUser?.delete()
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text("Log out", fontSize = 16.sp)
+
                 }
-            )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Delete account button
+                Button(
+                    onClick = {
+                        Toast.makeText(context, "Account deletion not implemented yet. Requires re-authentication.", Toast.LENGTH_LONG).show()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red.copy(alpha = 0.9f)
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.logoutuser),
+                        contentDescription = "Delete my account",
+                        modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete my account", fontSize = 16.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))  // Bottom padding
         }
-    }
-}
-
-@Composable
-fun AccountOption(iconRes: Int, text: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp)
-            .clickable { onClick() },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = text,
-            tint = Color.Red,
-            modifier = Modifier.size(24.dp)
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = text,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Red
-        )
     }
 }

@@ -1,5 +1,4 @@
-package com.example.mindscribe.repository
-
+package Repo
 import android.util.Log
 import backend.Note
 import com.example.mindscribe.R
@@ -12,6 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.first
 
 class FirestoreRepository @Inject constructor() {
     private val db: FirebaseFirestore = Firebase.firestore
@@ -20,6 +22,70 @@ class FirestoreRepository @Inject constructor() {
     private companion object {
         const val TAG = "FirestoreRepository"
         const val MAX_RETRIES = 3
+        const val BATCH_LIMIT = 500 // Firestore batch limit
+    }
+
+    suspend fun syncWithCloud(userId: String, localNotes: List<Note>) {
+        try {
+            // Step 1: Get all remote notes
+            val remoteNotes = getNotesByUser(userId).first()
+
+            // Step 2: Find notes that need updating
+            val notesToUpdate = mutableListOf<Note>()
+            val notesToCreate = mutableListOf<Note>()
+            val notesToDelete = mutableListOf<String>()
+
+            // Check local notes against remote
+            localNotes.forEach { localNote ->
+                remoteNotes.find { it.id == localNote.id }?.let { remoteNote ->
+                    if (localNote.timestamp > remoteNote.timestamp) {
+                        notesToUpdate.add(localNote)
+                    }
+                } ?: run {
+                    notesToCreate.add(localNote)
+                }
+            }
+
+            // Check remote notes against local
+            remoteNotes.forEach { remoteNote ->
+                if (localNotes.none { it.id == remoteNote.id }) {
+                    notesToDelete.add(remoteNote.id)
+                }
+            }
+
+            // Step 3: Execute all operations in batches
+            val batches = listOf(
+                notesToCreate.chunked(BATCH_LIMIT),
+                notesToUpdate.chunked(BATCH_LIMIT),
+                notesToDelete.chunked(BATCH_LIMIT)
+            ).flatten()
+
+            batches.forEach { batch ->
+                when (batch.firstOrNull()) {
+                    is Note -> {
+                        // Handle create/update batch
+                        val notesBatch = batch.filterIsInstance<Note>()
+                        notesBatch.forEach { note ->
+                            upsertNote(note, userId)
+                        }
+                    }
+                    is String -> {
+                        // Handle delete batch
+                        val idsBatch = batch.filterIsInstance<String>()
+                        idsBatch.forEach { id ->
+                            deleteNote(id)
+                        }
+                    }
+                }
+            }
+
+            Log.d(TAG, "Sync completed: ${notesToCreate.size} created, " +
+                    "${notesToUpdate.size} updated, ${notesToDelete.size} deleted")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Sync failed", e)
+            throw Exception("Sync failed: ${e.message ?: "Unknown error"}")
+        }
     }
 
     suspend fun upsertNote(note: Note, userId: String, retryCount: Int = 0) {
@@ -30,11 +96,18 @@ class FirestoreRepository @Inject constructor() {
                 note.copy(userId = userId)
             }
 
-            notesCollection.document(noteWithId.id)
-                .set(noteToMap(noteWithId))
+            // Ensure timestamp is set
+            val noteToSave = if (noteWithId.timestamp == 0L) {
+                noteWithId.copy(timestamp = System.currentTimeMillis())
+            } else {
+                noteWithId
+            }
+
+            notesCollection.document(noteToSave.id)
+                .set(noteToMap(noteToSave))
                 .await()
 
-            Log.d(TAG, "Note upserted: ${noteWithId.id}")
+            Log.d(TAG, "Note upserted: ${noteToSave.id}")
         } catch (e: Exception) {
             if (retryCount < MAX_RETRIES) {
                 Log.w(TAG, "Retrying upsert (attempt ${retryCount + 1})")

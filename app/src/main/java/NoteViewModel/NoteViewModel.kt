@@ -1,10 +1,11 @@
 package com.example.mindscribe.viewmodel
 
+
+import Repo.FirestoreRepository
 import Repo.NoteRepository
 import android.util.Log
 import androidx.lifecycle.*
 import backend.Note
-import com.example.mindscribe.repository.FirestoreRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -46,11 +47,14 @@ class NoteViewModel @Inject constructor(
     // Note processing pipeline
     private val allNotesFlow = combine(
         localRepo.getAllNotesForUser(userId),
-        if (userId != "guest") firestoreRepo.getNotesByUser(userId) else flowOf(emptyList()),
+        if (userId != "guest") firestoreRepo.getNotesByUser(userId).catch { e ->
+            Log.e(TAG, "Error fetching cloud notes", e)
+            emit(emptyList())
+        } else flowOf(emptyList()),
         _forceRefresh
     ) { localNotes, cloudNotes, _ ->
         mergeNotes(localNotes, cloudNotes).also {
-            Log.d(TAG, "Merged ${it.size} notes (local:${localNotes.size}, cloud:${cloudNotes.size})")
+            Log.d(TAG, "Merged ${it.size} notes (local:${localNotes.size}, cloud:${cloudNotes.size}) for user $userId")
         }
     }.stateIn(
         scope = viewModelScope,
@@ -72,22 +76,32 @@ class NoteViewModel @Inject constructor(
 
     init {
         setupAuthListener()
+        // Initial sync check
+        viewModelScope.launch {
+            if (userId != "guest") {
+                _syncTrigger.send(Unit)
+            }
+        }
     }
 
     private fun setupAuthListener() {
         auth.addAuthStateListener { firebaseAuth ->
             firebaseAuth.currentUser?.let { user ->
                 viewModelScope.launch {
-                    if (shouldSync()) {
-                        _syncTrigger.send(Unit)
-                    }
+                    Log.d(TAG, "Auth state changed, user: ${user.uid}")
+                    _syncTrigger.send(Unit) // Always trigger sync on auth change
                 }
+            } ?: run {
+                Log.d(TAG, "User logged out")
+                _uiState.update { it.copy(toastMessage = "Logged out") }
             }
         }
     }
 
     private fun shouldSync(): Boolean {
-        return System.currentTimeMillis() - lastSyncTime > SYNC_COOLDOWN
+        val shouldSync = System.currentTimeMillis() - lastSyncTime > SYNC_COOLDOWN
+        Log.d(TAG, "Should sync: $shouldSync")
+        return shouldSync
     }
 
     private fun matchesQuery(note: Note, query: String): Boolean {
@@ -100,10 +114,20 @@ class NoteViewModel @Inject constructor(
         .thenByDescending { it.timestamp }
 
     private fun mergeNotes(local: List<Note>, remote: List<Note>): List<Note> {
-        return (local + remote)
+        val merged = (local + remote)
             .groupBy { it.id }
-            .map { (_, notes) -> notes.maxByOrNull { it.timestamp } ?: notes.first() }
+            .map { (_, notes) ->
+                notes.maxByOrNull { it.timestamp }?.apply {
+                    // Ensure user ID is set correctly
+                    if (userId != "guest") {
+                        this.userId = userId
+                    }
+                } ?: notes.first()
+            }
             .sortedByDescending { it.timestamp }
+
+        Log.d(TAG, "Merged notes count: ${merged.size}")
+        return merged
     }
 
     // Public API
