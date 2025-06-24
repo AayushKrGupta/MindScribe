@@ -32,6 +32,9 @@ import ui.components.showDatePicker
 import ui.components.showTimePicker
 import util.NotificationScheduler
 import Reminder.ReminderViewModel
+import android.R
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -96,7 +99,30 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No reminders set. Tap '+' to add one!")
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = com.example.mindscribe.R.drawable.reminder),
+                            contentDescription = "No Reminders",
+                            modifier = Modifier.size(170.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "No reminders set!",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tap '+' to add your first reminder",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -136,14 +162,22 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                                 label = { Text("Description (Optional)") },
                                 modifier = Modifier.fillMaxWidth()
                             )
+
                             Spacer(modifier = Modifier.height(16.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Date selection - using derivedStateOf for better performance
+                                val dateText by remember(selectedCalendar) {
+                                    derivedStateOf {
+                                        SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                                            .format(selectedCalendar.time)
+                                    }
+                                }
                                 Text(
-                                    text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(selectedCalendar.time),
+                                    text = dateText,
                                     modifier = Modifier.clickable {
                                         showDatePicker(context, selectedCalendar) { newDate ->
                                             selectedCalendar = newDate
@@ -152,8 +186,16 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.primary
                                 )
+
+                                // Time selection - using derivedStateOf for better performance
+                                val timeText by remember(selectedCalendar) {
+                                    derivedStateOf {
+                                        SimpleDateFormat("hh:mm a", Locale.getDefault())
+                                            .format(selectedCalendar.time)
+                                    }
+                                }
                                 Text(
-                                    text = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(selectedCalendar.time),
+                                    text = timeText,
                                     modifier = Modifier.clickable {
                                         showTimePicker(context, selectedCalendar) { newTime ->
                                             selectedCalendar = newTime

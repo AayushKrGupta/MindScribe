@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -105,6 +107,8 @@ dependencies {
 
     // Splash Screen
     implementation(libs.androidx.splashscreen)
+    implementation(libs.material.components)
+
 
     // Hilt
     implementation(libs.hilt.android)

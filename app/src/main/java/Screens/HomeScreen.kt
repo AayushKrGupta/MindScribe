@@ -6,6 +6,7 @@ import androidx.compose.ui.res.colorResource
 import com.example.mindscribe.R // Replace with your actual package name
 import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -45,6 +46,7 @@ import ui.components.colorPalette
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 
 private const val TAG = "NoteAppDebug"
 
@@ -217,13 +219,38 @@ fun HomeScreen(
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 64.dp),
+                                        .fillMaxSize()
+                                        .padding(16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    val message = if (searchText.isBlank()) "You have no active notes"
-                                    else "No notes found for '$searchText'"
-                                    Text(message, style = MaterialTheme.typography.bodyLarge)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Spacer(modifier = Modifier.height(200.dp))
+                                        if (searchText.isBlank()) {
+                                            Image(
+                                                painter = painterResource(id = R.drawable.add_note),
+                                                contentDescription = "Add Note",
+                                                modifier = Modifier.size(190.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Text(
+                                                "Empty Note! Add your first note",
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontWeight = FontWeight.Bold
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                            )
+                                        } else {
+                                            Text(
+                                                "No notes found for '$searchText'",
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         } else {

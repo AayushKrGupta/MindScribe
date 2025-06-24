@@ -1,23 +1,25 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
 
-    <style name="Theme.MindScribe" parent="android:Theme.Material.Light.NoActionBar" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base app theme -->
+    <style name="Base.Theme.MindScribe" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Your regular theme customization -->
+    </style>
+
+    <!-- Light theme variant -->
+    <style name="Theme.MindScribe" parent="Base.Theme.MindScribe" />
 
     <!-- Splash Screen Theme -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <!-- Required: Theme background color. This is the color behind the icon. -->
-        <item name="windowSplashScreenBackground">@color/white</item> <!-- Use a color from your palette -->
+        <!-- Snapchat yellow background -->
+        <item name="windowSplashScreenBackground">@color/snapchat_yellow</item>
 
-        <!-- Required: The icon to display. -->
-        <!-- Replace @drawable/splash_icon with your actual drawable resource -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <!-- Splash icon -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreeen</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item> <!-- 1 second -->
 
-        <!-- Optional: Duration for the splash screen to remain visible. -->
-        <!-- Set to 0 to dismiss immediately after content is ready. -->
-        <!-- If you want a fixed duration, you can set it here, e.g., 3000ms -->
-        <!-- <item name="windowSplashScreenAnimationDuration">1000</item> -->
+        <!-- Exit animation -->
 
-        <!-- Optional: Post-splash screen theme. This is the theme applied after the splash screen is dismissed. -->
+        <!-- Post-splash theme -->
         <item name="postSplashScreenTheme">@style/Theme.MindScribe</item>
     </style>
 </resources>
