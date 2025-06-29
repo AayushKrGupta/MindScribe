@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
+
+
     // Get all notes for a specific user, ordered by timestamp
     @Query("SELECT * FROM notes WHERE userId = :userId ORDER BY timestamp DESC")
     fun getAllNotesForUser(userId: String): Flow<List<Note>>
@@ -22,6 +24,7 @@ interface NoteDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note)
 
+
     @Update
     suspend fun update(note: Note)
 
@@ -35,4 +38,7 @@ interface NoteDao {
     // Optional: Add a method to delete all notes for a specific user
     @Query("DELETE FROM notes WHERE userId = :userId")
     suspend fun deleteAllNotesForUser(userId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(notes: List<Note>)
 }

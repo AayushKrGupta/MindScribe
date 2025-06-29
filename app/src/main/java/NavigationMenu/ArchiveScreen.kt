@@ -1,10 +1,7 @@
-// Screens/ArchiveScreen.kt
-// Make sure this package declaration matches your actual project structure.
-// If your 'Screens' folder is directly under 'app/src/main/java', this is correct.
+
 package Screens
-
-
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -29,14 +26,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.lifecycle.viewmodel.compose.viewModel // This should still be here if you're using default ViewModel factory (though we pass it now)
-import backend.Note // <--- IMPORTANT: Ensure this import is correct for your Note data class's package
-import com.example.mindscribe.ui.components.NavigationDrawerContent // Only if used directly in this file
+import androidx.lifecycle.viewmodel.compose.viewModel
+import backend.Note
+import com.example.mindscribe.ui.components.NavigationDrawerContent
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.colorResource // Ensure this is imported for colorResource
+import androidx.compose.ui.res.painterResource
 import com.example.mindscribe.viewmodel.NoteViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,9 +64,28 @@ fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
-                ) {
-                    Text("No archived notes.", style = MaterialTheme.typography.bodyLarge)
+                )
+                {Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                )
+                {
+                    Image(
+                        painter = painterResource(id = com.example.mindscribe.R.drawable.archive),
+                        contentDescription = "No Archive",
+                        modifier = Modifier.size(250.dp)
+                    )
+                    Spacer(modifier = Modifier.height(1.dp))
+                    Text(
+                        "No archived notes!",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+
                 }
+            }
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),

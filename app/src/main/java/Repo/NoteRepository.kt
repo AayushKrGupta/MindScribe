@@ -3,9 +3,11 @@ package Repo
 import Database.NoteDao
 import android.util.Log
 import backend.Note
+import kotlinx.coroutines.delay
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -16,9 +18,11 @@ class NoteRepository @Inject constructor(
 ) {
     private companion object {
         const val TAG = "NoteRepository"
+        const val BATCH_SIZE = 50 // Reduced batch size for better reliability
+        const val MAX_RETRIES = 3
     }
 
-    // Local DB operations
+    // Local DB operations remain mostly the same
     fun getAllNotesForUser(userId: String): Flow<List<Note>> =
         noteDao.getAllNotesForUser(userId)
             .catch { e -> Log.e(TAG, "Local DB read error", e) }
@@ -30,94 +34,127 @@ class NoteRepository @Inject constructor(
         val noteToSave = note.copy(
             timestamp = if (note.timestamp == 0L) System.currentTimeMillis() else note.timestamp
         )
-
-        try {
-            // Local first strategy
-            noteDao.insert(noteToSave)
-
-            // Sync to cloud if authenticated
-            if (noteToSave.userId != "guest") {
-                firestoreRepo.upsertNote(noteToSave, noteToSave.userId)
-                    .also { Log.d(TAG, "Note upserted to Firestore: ${noteToSave.id}") }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Insert failed", e)
-            throw Exception("Failed to save note")
+        noteDao.insert(noteToSave)
+        if (noteToSave.userId != "guest") {
+            firestoreRepo.upsertNote(noteToSave, noteToSave.userId)
         }
     }
 
     suspend fun update(note: Note) {
         val updatedNote = note.copy(timestamp = System.currentTimeMillis())
-
-        try {
-            noteDao.update(updatedNote)
-            if (updatedNote.userId != "guest") {
-                firestoreRepo.upsertNote(updatedNote, updatedNote.userId)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Update failed", e)
-            throw Exception("Failed to update note")
+        noteDao.update(updatedNote)
+        if (updatedNote.userId != "guest") {
+            firestoreRepo.upsertNote(updatedNote, updatedNote.userId)
         }
     }
 
     suspend fun delete(note: Note) {
-        try {
-            noteDao.delete(note)
-            if (note.userId != "guest") {
-                firestoreRepo.deleteNote(note.id)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Delete failed", e)
-            throw Exception("Failed to delete note")
+        noteDao.delete(note)
+        if (note.userId != "guest") {
+            firestoreRepo.deleteNote(note.id)
         }
     }
 
-    // Search functionality
-    fun searchNotesForUser(query: String, userId: String): Flow<List<Note>> =
-        noteDao.searchNotesForUser(query, userId)
-            .catch { e -> Log.e(TAG, "Search failed", e) }
-
-    // Sync improvements
-    suspend fun syncWithCloud(userId: String) {
+    // Improved sync implementation
+    suspend fun syncWithCloud(userId: String, onProgress: (Int) -> Unit = {}) {
         if (userId == "guest") return
 
         try {
-            Log.d(TAG, "Starting sync for user: $userId")
+            Log.d(TAG, "Starting optimized sync for user: $userId")
 
-            // 1. Push local changes to cloud
-            noteDao.getAllNotesForUser(userId).collect { localNotes ->
-                localNotes.forEach { localNote ->
-                    try {
-                        val cloudNote = firestoreRepo.getNoteById(localNote.id)
-                        if (cloudNote == null || localNote.timestamp > cloudNote.timestamp) {
-                            firestoreRepo.upsertNote(localNote, userId)
-                            Log.d(TAG, "Pushed local note to cloud: ${localNote.id}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to push note ${localNote.id}", e)
-                    }
-                }
-            }
+            // 1. Get all notes in batches
+            val localNotes = noteDao.getAllNotesForUser(userId).first()
+            val cloudNotes = firestoreRepo.getNotesByUser(userId).first()
 
-            // 2. Pull cloud changes to local
-            firestoreRepo.getNotesByUser(userId).collect { cloudNotes ->
-                cloudNotes.forEach { cloudNote ->
-                    try {
-                        val localNote = noteDao.getNoteById(cloudNote.id)
-                        if (localNote == null || cloudNote.timestamp > localNote.timestamp) {
-                            noteDao.insert(cloudNote)
-                            Log.d(TAG, "Pulled cloud note to local: ${cloudNote.id}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to pull note ${cloudNote.id}", e)
-                    }
-                }
-            }
+            // 2. Prepare sync operations
+            val operations = prepareSyncOperations(localNotes, cloudNotes, userId)
 
-            Log.d(TAG, "Sync completed for user: $userId")
+            // 3. Execute in batches with progress updates
+            executeSyncOperations(operations, onProgress)
+
+            Log.d(TAG, "Sync completed successfully for user: $userId")
         } catch (e: Exception) {
             Log.e(TAG, "Sync failed for user: $userId", e)
-            throw Exception("Sync failed: ${e.message}")
+            throw Exception("Sync failed: ${e.message ?: "Unknown error"}")
         }
+    }
+
+    private suspend fun prepareSyncOperations(
+        localNotes: List<Note>,
+        cloudNotes: List<Note>,
+        userId: String
+    ): SyncOperations {
+        val operations = SyncOperations()
+
+        // Find notes that need pushing to cloud
+        localNotes.forEach { localNote ->
+            val cloudNote = cloudNotes.find { it.id == localNote.id }
+            if (cloudNote == null || localNote.timestamp > cloudNote.timestamp) {
+                operations.addUpload(localNote)
+            }
+        }
+
+        // Find notes that need pulling to local
+        cloudNotes.forEach { cloudNote ->
+            val localNote = localNotes.find { it.id == cloudNote.id }
+            if (localNote == null || cloudNote.timestamp > localNote.timestamp) {
+                operations.addDownload(cloudNote)
+            }
+        }
+
+        return operations
+    }
+
+    private suspend fun executeSyncOperations(
+        operations: SyncOperations,
+        onProgress: (Int) -> Unit
+    ) {
+        val totalOperations = operations.upload.size + operations.download.size
+        var completedOperations = 0
+
+        // Process uploads in batches
+        operations.upload.chunked(BATCH_SIZE).forEach { batch ->
+            batch.forEach { note ->
+                tryWithRetry(MAX_RETRIES) {
+                    firestoreRepo.upsertNote(note, note.userId)
+                    completedOperations++
+                    onProgress(completedOperations * 100 / totalOperations)
+                }
+            }
+        }
+
+        // Process downloads in batches
+        operations.download.chunked(BATCH_SIZE).forEach { batch ->
+            noteDao.insertAll(batch) // Single transaction
+            completedOperations += batch.size
+            onProgress(completedOperations * 100 / totalOperations)
+        }
+    }
+
+    private suspend fun <T> tryWithRetry(maxRetries: Int, block: suspend () -> T): T {
+        var retryCount = 0
+        var lastError: Exception? = null
+
+        while (retryCount <= maxRetries) {
+            try {
+                return block()
+            } catch (e: Exception) {
+                lastError = e
+                retryCount++
+                if (retryCount <= maxRetries) {
+                    delay(2000L * retryCount) // Exponential backoff
+                }
+            }
+        }
+
+        throw lastError ?: Exception("Unknown error after retries")
+    }
+
+    private class SyncOperations {
+        val upload = mutableListOf<Note>()
+        val download = mutableListOf<Note>()
+
+        fun addUpload(note: Note) { upload.add(note) }
+        fun addDownload(note: Note) { download.add(note) }
     }
 }

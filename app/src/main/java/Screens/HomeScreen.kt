@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import backend.Note
+import coil.compose.AsyncImage
 import com.example.mindscribe.R
 import com.example.mindscribe.ui.components.NavigationDrawerContent
 import com.example.mindscribe.viewmodel.NoteViewModel
@@ -69,6 +71,7 @@ fun HomeScreen(
             value = auth.currentUser
             if (value != null) {
                 scope.launch {
+                    Toast.makeText(context, "Syncing with Firebase...", Toast.LENGTH_SHORT).show()
                     noteViewModel.syncNotes()
                 }
             }
@@ -82,6 +85,7 @@ fun HomeScreen(
     // Initial sync
     LaunchedEffect(Unit) {
         if (currentUser != null) {
+            Toast.makeText(context, "Syncing with Firebase...", Toast.LENGTH_SHORT).show()
             noteViewModel.syncNotes()
         }
     }
@@ -182,7 +186,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Filled.AccountCircle,
                                         contentDescription = "Account",
-                                        tint = if (currentUser != null) MaterialTheme.colorScheme.primary
+                                        tint = if (currentUser != null) MaterialTheme.colorScheme.inversePrimary
                                         else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(28.dp)
                                     )
@@ -214,71 +218,69 @@ fun HomeScreen(
                     }
                 }
             ) { innerPadding ->
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(vertical = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (notes.isEmpty() && !uiState.isLoading) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (notes.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Spacer(modifier = Modifier.height(200.dp))
-                                        if (searchText.isBlank()) {
-                                            Image(
-                                                painter = painterResource(id = R.drawable.add_note),
-                                                contentDescription = "Add Note",
-                                                modifier = Modifier.size(190.dp)
+                                    Spacer(modifier = Modifier.height(250.dp))
+                                    if (searchText.isBlank()) {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.addnote),
+                                            contentDescription = "Add Note",
+                                            modifier = Modifier.size(190.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text(
+                                            "Empty Note!",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            "Add your first note to start...",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    } else {
+                                        Text(
+                                            "No notes found for '$searchText'",
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontWeight = FontWeight.Bold
                                             )
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            Text(
-                                                "Empty Note! Add your first note",
-                                                style = MaterialTheme.typography.titleMedium.copy(
-                                                    fontWeight = FontWeight.Bold
-                                                ),
-                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                            )
-                                        } else {
-                                            Text(
-                                                "No notes found for '$searchText'",
-                                                style = MaterialTheme.typography.bodyLarge.copy(
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            )
-                                        }
+                                        )
                                     }
                                 }
                             }
-                        } else {
-                            items(notes, key = { it.id }) { note ->
-                                NoteCard(
-                                    note = note,
-                                    onClick = { navController.navigate("note/${note.id}") },
-                                    onDelete = { noteViewModel.delete(it) },
-                                    onTogglePin = { noteViewModel.togglePin(it) },
-                                    onToggleArchive = { noteViewModel.toggleArchive(it) }
-                                )
-                            }
+                        }
+                    } else {
+                        items(notes, key = { it.id }) { note ->
+                            NoteCard(
+                                note = note,
+                                onClick = { navController.navigate("note/${note.id}") },
+                                onDelete = { noteViewModel.delete(it) },
+                                onTogglePin = { noteViewModel.togglePin(it) },
+                                onToggleArchive = { noteViewModel.toggleArchive(it) }
+                            )
                         }
                     }
                 }
@@ -302,11 +304,13 @@ fun NoteCard(
     }
     val cardBackgroundColor = colorResource(id = note.colorResId)
     var showOptionsMenu by remember { mutableStateOf(false) }
+    val hasImage = !note.imageUrls.isNullOrEmpty()
+    val cardHeight = if (hasImage) 300.dp else 150.dp
 
     Card(
         modifier = Modifier
-            .aspectRatio(1f)
-            .fillMaxHeight()
+            .fillMaxWidth()
+            .height(cardHeight)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = { showOptionsMenu = true }
@@ -322,6 +326,23 @@ fun NoteCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                // Display image if available
+                if (!note.imageUrls.isNullOrEmpty()) {
+                    // Safely get the first image using ?.firstOrNull() and the null-safe operator ?
+                    note.imageUrls?.firstOrNull()?.let { firstImageUrl ->
+                        AsyncImage(
+                            model = firstImageUrl,
+                            contentDescription = "Note Image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -355,7 +376,6 @@ fun NoteCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -372,7 +392,7 @@ fun NoteCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                     }
-                    if (!note.imageUrls.isNullOrEmpty()) {
+                    if (hasImage) {
                         Icon(
                             imageVector = Icons.Filled.Image,
                             contentDescription = "Contains Image",
@@ -405,7 +425,6 @@ fun NoteCard(
                         MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    .clip(RoundedCornerShape(12.dp))
             ) {
                 DropdownMenuItem(
                     text = { Text(if (note.isPinned) "Unpin Note" else "Pin Note") },

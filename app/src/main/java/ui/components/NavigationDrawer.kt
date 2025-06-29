@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
@@ -79,6 +83,20 @@ fun NavigationDrawerContent(
                 }
             }
 
+            Text(
+                text = "MindScribe",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontStyle = FontStyle.Italic,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()  // Make the Text take full width
+                    .padding(top = 8.dp),
+                textAlign = TextAlign.Center  // Center the text within its available width
+            )
+        }
+
             Spacer(Modifier.height(12.dp))
 
             // Main Drawer Items
@@ -136,4 +154,3 @@ fun NavigationDrawerContent(
             }
         }
     }
-}

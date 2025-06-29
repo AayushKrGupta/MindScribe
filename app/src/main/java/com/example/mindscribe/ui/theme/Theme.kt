@@ -40,7 +40,10 @@ private val LightColorScheme = lightColorScheme(
     onTertiary = Color(0xFFFFFFFF), // Changed from Color.White to hex code for pure white
     onBackground = Color(0xFF1C1B1F), // Keep this as a dark color for text on white background
     onSurface = Color(0xFF1C1B1F),
+    inversePrimary = Color(0xFFFF0000)
+
 )
+
 
 @Composable
 fun MindScribeTheme(
