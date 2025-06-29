@@ -1,30 +1,31 @@
 package com.example.mindscribe.ui.screens
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.runtime.*
-import android.content.Context
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.SortByAlpha
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.ui.graphics.vector.ImageVector // Import ImageVector
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun SettingsScreen(navController: NavController) {
     var isDarkModeEnabled by remember { mutableStateOf(false) }
     var defaultSortOption by remember { mutableStateOf("Date Modified") }
     var fontSize by remember { mutableStateOf(16) }
+    val githubUrl = "https://github.com/AayushKrGupta/MindScribe.git"
 
     Scaffold(
         topBar = {
@@ -72,29 +74,16 @@ fun SettingsScreen(navController: NavController) {
                 checked = isDarkModeEnabled,
                 onCheckedChange = {
                     isDarkModeEnabled = it
-                    // TODO: Implement actual theme change logic (e.g., update app theme)
                     Toast.makeText(context, "Dark Mode: ${if (it) "On" else "Off"}", Toast.LENGTH_SHORT).show()
                 }
             )
 
-            // Default Sorting Option
-            SettingsClickableOption(
-                title = "Default Note Sorting",
-                description = "Current: $defaultSortOption",
-                icon = Icons.Default.SortByAlpha,
-                onClick = {
-                    // TODO: Implement a dialog or new screen to select sorting options
-                    Toast.makeText(context, "Open sorting options", Toast.LENGTH_SHORT).show()
-                }
-            )
-
-            // Font Size Adjustment (Example with a basic clickable, could be a slider or dialog)
+            // Font Size Adjustment
             SettingsClickableOption(
                 title = "Note Font Size",
                 description = "Current: ${fontSize}sp",
                 icon = Icons.Default.Description,
                 onClick = {
-                    // TODO: Implement a dialog or slider to adjust font size
                     Toast.makeText(context, "Adjust font size (e.g., show slider)", Toast.LENGTH_SHORT).show()
                 }
             )
@@ -115,7 +104,6 @@ fun SettingsScreen(navController: NavController) {
                 description = "Export your notes data",
                 icon = Icons.Default.Storage,
                 onClick = {
-                    // TODO: Implement backup functionality (e.g., save to external storage, cloud)
                     Toast.makeText(context, "Initiate notes backup", Toast.LENGTH_SHORT).show()
                 }
             )
@@ -124,24 +112,7 @@ fun SettingsScreen(navController: NavController) {
                 description = "Import notes from a backup file",
                 icon = Icons.Default.Restore,
                 onClick = {
-                    // TODO: Implement restore functionality
                     Toast.makeText(context, "Initiate notes restore", Toast.LENGTH_SHORT).show()
-                }
-            )
-            SettingsClickableOption(
-                title = "Clear Cache",
-                description = "Free up space by clearing temporary files",
-                onClick = {
-                    // TODO: Implement cache clearing logic
-                    Toast.makeText(context, "Cache cleared!", Toast.LENGTH_SHORT).show()
-                }
-            )
-            SettingsClickableOption(
-                title = "Clear All Data",
-                description = "Delete all notes and app data permanently",
-                onClick = {
-                    // TODO: Implement a confirmation dialog and then clear all data
-                    Toast.makeText(context, "Confirm to clear all data", Toast.LENGTH_SHORT).show()
                 }
             )
 
@@ -158,19 +129,19 @@ fun SettingsScreen(navController: NavController) {
 
             SettingsClickableOption(
                 title = "Version",
-                description = "1.0.0 (Build 20240101)", // Hardcoded for example, get from BuildConfig in real app
+                description = "1.0.0 (Build 20240101)",
                 icon = Icons.Default.Info,
                 onClick = {
                     Toast.makeText(context, "App version details", Toast.LENGTH_SHORT).show()
                 },
-                showArrow = false // No navigation for just displaying info
+                showArrow = false
             )
             SettingsClickableOption(
                 title = "Open Source Licenses",
                 description = "View licenses for libraries used",
+                icon = Icons.Default.Info,
                 onClick = {
-                    // TODO: Navigate to Android's default OSS license screen or your custom one
-                    Toast.makeText(context, "Show open source licenses", Toast.LENGTH_SHORT).show()
+                    openUrlInBrowser(context, githubUrl)
                 }
             )
         }
@@ -181,7 +152,7 @@ fun SettingsScreen(navController: NavController) {
 fun SettingsClickableOption(
     title: String,
     description: String? = null,
-    icon: ImageVector? = null, // Changed type to ImageVector?
+    icon: ImageVector? = null,
     onClick: () -> Unit,
     showArrow: Boolean = true
 ) {
@@ -196,8 +167,8 @@ fun SettingsClickableOption(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Icon(
-                    imageVector = icon, // Directly use icon here
-                    contentDescription = null, // Content description for icon
+                    imageVector = icon,
+                    contentDescription = null,
                     modifier = Modifier
                         .size(24.dp)
                         .padding(end = 8.dp),
@@ -225,12 +196,11 @@ fun SettingsClickableOption(
     }
 }
 
-
 @Composable
 fun SettingsToggleOption(
     title: String,
     description: String? = null,
-    icon: ImageVector? = null, // Changed type to ImageVector?
+    icon: ImageVector? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
@@ -245,7 +215,7 @@ fun SettingsToggleOption(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 Icon(
-                    imageVector = icon, // Directly use icon here
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier
                         .size(24.dp)
@@ -269,5 +239,16 @@ fun SettingsToggleOption(
             onCheckedChange = onCheckedChange,
             modifier = Modifier.padding(start = 8.dp)
         )
+    }
+}
+
+fun openUrlInBrowser(context: Context, url: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No browser app found to open the link", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error opening link: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

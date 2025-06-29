@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // Add slight delay for smooth splash transition (optional)
-                    delay(1000)
+                    delay(500)
 
                     // Request permission if needed
                     if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
