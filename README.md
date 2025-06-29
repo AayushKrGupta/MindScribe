@@ -2,6 +2,21 @@
 
 ![App Logo](https://raw.githubusercontent.com/yourusername/yourrepo/main/assets/app_logo.png) MindScribe is a sophisticated, user-centric note-taking application engineered for seamless capture, organization, and synchronization of your thoughts. Crafted with the latest **Jetpack Compose** for a fluid and intuitive user interface, MindScribe leverages **Firebase Authentication** for secure user management and **Cloud Firestore** for real-time, multi-device data synchronization, ensuring your notes are always up-to-date and accessible.
 
+## 📱 App Screenshots
+
+<div align="center">
+  <img src="screenshots/1.png" width="30%" alt="Home Screen"/>
+  <img src="screenshots/2.png" width="30%" alt="Note Editor"/> 
+  <img src="screenshots/3.png" width="30%" alt="Navigation Drawer"/>
+</div>
+
+<div align="center">
+  <img src="screenshots/4.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/5.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/6.png" width="30%" alt="Settings"/>
+</div>
+
+
 ## ✨ Core Features & Functionality
 
 MindScribe offers a rich set of features designed to enhance your note-taking experience:
