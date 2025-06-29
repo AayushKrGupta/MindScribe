@@ -1,21 +1,32 @@
-# MindScribe: Your Thoughts, Synchronized.
+# <div align="center">MindScribe</div>
 
-![App Logo](https://github.com/AayushKrGupta/MindScribe/blob/main/app/src/main/res/drawable/mind.jpg) https://github.com/AayushKrGupta/MindScribe/blob/main/app/src/main/res/drawable/mind.jpgMindScribe is a sophisticated, user-centric note-taking application engineered for seamless capture, organization, and synchronization of your thoughts. Crafted with the latest **Jetpack Compose** for a fluid and intuitive user interface, MindScribe leverages **Firebase Authentication** for secure user management and **Cloud Firestore** for real-time, multi-device data synchronization, ensuring your notes are always up-to-date and accessible.
+<div align="center">
+  <img src="https://raw.githubusercontent.com/AayushKrGupta/MindScribe/main/app/src/main/res/drawable/applogo.png" width="200" style="border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border: 3px solid #f0f0f0;">
+</div>
+
+<h3 align="center" style="font-style: italic; color: #555;">Your Thoughts, Synchronized</h3>
+
+MindScribe is a sophisticated, user-centric note-taking application engineered for seamless capture, organization, and synchronization of your thoughts. Crafted with the latest **Jetpack Compose** for a fluid and intuitive user interface, MindScribe leverages **Firebase Authentication** for secure user management and **Cloud Firestore** for real-time, multi-device data synchronization, ensuring your notes are always up-to-date and accessible.
 
 ## 📱 App Screenshots
 
 <div align="center">
-  <img src="screenshots/1.png" width="30%" alt="Home Screen"/>
-  <img src="screenshots/2.png" width="30%" alt="Note Editor"/> 
-  <img src="screenshots/3.png" width="30%" alt="Navigation Drawer"/>
+  <img src="screenshots/a.png" width="30%" alt="Home Screen"/>
+  <img src="screenshots/1.png" width="30%" alt="Note Editor"/> 
+  <img src="screenshots/2.png" width="30%" alt="Navigation Drawer"/>
 </div>
 
 <div align="center">
-  <img src="screenshots/4.png" width="30%" alt="Dark Mode"/>
-  <img src="screenshots/5.png" width="30%" alt="Search Functionality"/>
-  <img src="screenshots/6.png" width="30%" alt="Settings"/>
+  <img src="screenshots/3.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/4.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/5.png" width="30%" alt="Settings"/>
 </div>
 
+<div align="center">
+  <img src="screenshots/6.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/7.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/8.png" width="30%" alt="Settings"/>
+</div>
 
 ## ✨ Core Features & Functionality
 
