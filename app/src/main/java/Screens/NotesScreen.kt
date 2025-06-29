@@ -274,7 +274,10 @@ fun NotesScreen(
                 recordingFilePath?.let { path ->
                     if (File(path).exists()) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        AudioPlayer(audioFilePath = path)
+                        AudioPlayer(
+                            audioFilePath = path,
+                            isRecording = isRecording
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
                 }

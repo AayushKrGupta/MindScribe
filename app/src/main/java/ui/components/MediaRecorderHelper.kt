@@ -1,4 +1,4 @@
-// ui.components/MediaRecorderHelper.kt
+
 package ui.components
 
 import android.content.Context
@@ -12,7 +12,7 @@ import java.util.*
 
 class MediaRecorderHelper(private val context: Context) {
     private var recorder: MediaRecorder? = null
-    private var outputFile: String = ""
+    private var outputFile: String? = null
     private var isRecording = false
 
     fun startRecording(): String? {
@@ -53,25 +53,27 @@ class MediaRecorderHelper(private val context: Context) {
         return null
     }
 
-    // MODIFIED: Now returns String?
     fun stopRecording(): String? {
-        try {
+        return try {
             recorder?.apply {
                 stop()
                 release()
-                Toast.makeText(context, "Recording saved", Toast.LENGTH_SHORT).show()
             }
-            // Return the path of the saved file
-            return outputFile
+            Toast.makeText(context, "Recording saved", Toast.LENGTH_SHORT).show()
+            outputFile
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(context, "Error stopping recording: ${e.message}", Toast.LENGTH_LONG).show()
-            return null // Return null on error
+            null
         } finally {
             recorder = null
             isRecording = false
+            // Add a small delay to ensure file is fully written
+            Thread.sleep(200)
         }
     }
 
     fun isRecording(): Boolean = isRecording
+
+    fun getCurrentOutputFile(): String? = outputFile
 }
