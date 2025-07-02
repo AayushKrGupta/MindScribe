@@ -25,7 +25,7 @@ MindScribe is a sophisticated, user-centric note-taking application engineered f
 <div align="center">
   <img src="screenshots/NoteScreenAudioRecorder.png" width="30%" alt="Dark Mode"/>
   <img src="screenshots/NoteScreenBullets.png" width="30%" alt="Search Functionality"/>
-  <img src="screenshots/Reminder2" width="30%" alt="Reminder2"/>
+  <img src="screenshots/Reminder2.png" width="30%" alt="Reminder2"/>
 </div>
 
 <div align="center">
