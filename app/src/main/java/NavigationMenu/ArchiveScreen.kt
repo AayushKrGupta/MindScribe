@@ -41,7 +41,6 @@ import com.example.mindscribe.viewmodel.NoteViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel) {
-    // This line should now work IF archivedNotes is defined in NoteViewModel
     val archivedNotes by noteViewModel.archivedNotes.observeAsState(emptyList())
 
     Scaffold(
@@ -97,7 +96,6 @@ fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // .id should now be recognized because 'backend.Note' is imported
                     items(archivedNotes, key = { it.id }) { note ->
                         ArchivedNoteCard(
                             note = note,

@@ -16,9 +16,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.example.mindscribe.R // Important: Your app's R file
 
-// Define your color palette as a list of resource IDs
 val colorPalette = listOf(
-    R.color.note_color_default, // You might need to add this to your colors.xml if not there
+    R.color.note_color_default,
     R.color.note_red,
     R.color.note_pink,
     R.color.note_purple,
@@ -42,7 +41,7 @@ val colorPalette = listOf(
 
 @Composable
 fun ColorPaletteDialog(
-    onColorSelected: (Int) -> Unit, // Callback returns the selected color resource ID
+    onColorSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -50,14 +49,14 @@ fun ColorPaletteDialog(
         title = { Text("Select Note Color") },
         text = {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4), // Display colors in 4 columns
+                columns = GridCells.Fixed(4),
                 contentPadding = PaddingValues(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(colorPalette) { colorResId ->
                     ColorDot(colorResId = colorResId) {
-                        onColorSelected(it) // Pass the selected color resource ID back
+                        onColorSelected(it)
                     }
                 }
             }
@@ -74,9 +73,9 @@ fun ColorPaletteDialog(
 fun ColorDot(colorResId: Int, onClick: (Int) -> Unit) {
     Box(
         modifier = Modifier
-            .size(48.dp) // Size of the color circle
-            .clip(CircleShape) // Clip to a circle shape
-            .background(androidx.compose.ui.res.colorResource(id = colorResId)) // Use colorResource to resolve the color
-            .clickable { onClick(colorResId) } // Pass the resource ID on click
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(androidx.compose.ui.res.colorResource(id = colorResId))
+            .clickable { onClick(colorResId) }
     )
 }

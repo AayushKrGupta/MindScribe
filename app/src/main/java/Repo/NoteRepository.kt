@@ -18,7 +18,7 @@ class NoteRepository @Inject constructor(
 ) {
     private companion object {
         const val TAG = "NoteRepository"
-        const val BATCH_SIZE = 50 // Reduced batch size for better reliability
+        const val BATCH_SIZE = 50
         const val MAX_RETRIES = 3
     }
 
@@ -54,22 +54,14 @@ class NoteRepository @Inject constructor(
             firestoreRepo.deleteNote(note.id)
         }
     }
-
-    // Improved sync implementation
     suspend fun syncWithCloud(userId: String, onProgress: (Int) -> Unit = {}) {
         if (userId == "guest") return
 
         try {
             Log.d(TAG, "Starting optimized sync for user: $userId")
-
-            // 1. Get all notes in batches
             val localNotes = noteDao.getAllNotesForUser(userId).first()
             val cloudNotes = firestoreRepo.getNotesByUser(userId).first()
-
-            // 2. Prepare sync operations
             val operations = prepareSyncOperations(localNotes, cloudNotes, userId)
-
-            // 3. Execute in batches with progress updates
             executeSyncOperations(operations, onProgress)
 
             Log.d(TAG, "Sync completed successfully for user: $userId")
@@ -85,16 +77,12 @@ class NoteRepository @Inject constructor(
         userId: String
     ): SyncOperations {
         val operations = SyncOperations()
-
-        // Find notes that need pushing to cloud
         localNotes.forEach { localNote ->
             val cloudNote = cloudNotes.find { it.id == localNote.id }
             if (cloudNote == null || localNote.timestamp > cloudNote.timestamp) {
                 operations.addUpload(localNote)
             }
         }
-
-        // Find notes that need pulling to local
         cloudNotes.forEach { cloudNote ->
             val localNote = localNotes.find { it.id == cloudNote.id }
             if (localNote == null || cloudNote.timestamp > localNote.timestamp) {
@@ -111,8 +99,6 @@ class NoteRepository @Inject constructor(
     ) {
         val totalOperations = operations.upload.size + operations.download.size
         var completedOperations = 0
-
-        // Process uploads in batches
         operations.upload.chunked(BATCH_SIZE).forEach { batch ->
             batch.forEach { note ->
                 tryWithRetry(MAX_RETRIES) {
@@ -122,8 +108,6 @@ class NoteRepository @Inject constructor(
                 }
             }
         }
-
-        // Process downloads in batches
         operations.download.chunked(BATCH_SIZE).forEach { batch ->
             noteDao.insertAll(batch) // Single transaction
             completedOperations += batch.size
@@ -142,7 +126,7 @@ class NoteRepository @Inject constructor(
                 lastError = e
                 retryCount++
                 if (retryCount <= maxRetries) {
-                    delay(2000L * retryCount) // Exponential backoff
+                    delay(2000L * retryCount)
                 }
             }
         }

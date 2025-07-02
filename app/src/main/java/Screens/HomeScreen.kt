@@ -17,7 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material3.* // Ensure all Material 3 components are imported
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -211,10 +211,10 @@ fun HomeScreen(
                     // --- FAB Modernization START ---
                     ExtendedFloatingActionButton(
                         onClick = { navController.navigate("note/-1") },
-                        modifier = Modifier.padding(16.dp), // Add some padding around the FAB
-                        containerColor = MaterialTheme.colorScheme.primaryContainer, // Use Material 3 primary container color
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // Content color for primary container
-                        elevation = FloatingActionButtonDefaults.elevation( // Custom elevation for a lifted effect
+                        modifier = Modifier.padding(16.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        elevation = FloatingActionButtonDefaults.elevation(
                             defaultElevation = 6.dp,
                             pressedElevation = 12.dp,
                             focusedElevation = 8.dp,
@@ -226,7 +226,7 @@ fun HomeScreen(
                                 contentDescription = "Add Note"
                             )
                         },
-                        text = { Text("Add Note") } // Text label for the FAB
+                        text = { Text("Add Note") }
                     )
 
                     /*
@@ -250,7 +250,6 @@ fun HomeScreen(
                         )
                     }
                     */
-                    // --- FAB Modernization END ---
                 }
             ) { innerPadding ->
                 LazyVerticalGrid(
@@ -450,19 +449,14 @@ fun NoteCard(
                 )
             }
 
-            // --- Corrected DropdownMenu START ---
             DropdownMenu(
                 expanded = showOptionsMenu,
                 onDismissRequest = { showOptionsMenu = false },
-                // Apply shape and elevation directly to the DropdownMenu
-                shape = RoundedCornerShape(16.dp), // Match the desired rounded corners
-                tonalElevation = 8.dp,             // Add tonal elevation for depth
-                shadowElevation = 8.dp             // Explicit shadow for a lifted effect
-                // The background color will automatically be derived from the theme's
-                // surface colors based on the elevation, matching Material 3 guidelines.
+                shape = RoundedCornerShape(16.dp),
+                tonalElevation = 8.dp,
+                shadowElevation = 8.dp
             ) {
-                // The DropdownMenuItems go directly here within the DropdownMenu content lambda
-                // No need for an extra Surface or Column wrapper around these
+
                 DropdownMenuItem(
                     text = { Text(if (note.isPinned) "Unpin Note" else "Pin Note") },
                     onClick = {
@@ -509,7 +503,6 @@ fun NoteCard(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
-            // --- Corrected DropdownMenu END ---
         }
     }
 }

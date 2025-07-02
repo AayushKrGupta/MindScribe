@@ -1,4 +1,3 @@
-// ui.components/AudioPlayer.kt
 package ui.components
 
 import android.media.MediaPlayer
@@ -37,7 +36,6 @@ fun AudioPlayer(
     var showError by remember { mutableStateOf(false) }
     var fileExists by remember { mutableStateOf(false) }
 
-    // Check file existence and size
     LaunchedEffect(audioFilePath) {
         fileExists = if (audioFilePath != null) {
             val file = File(audioFilePath)
@@ -47,7 +45,6 @@ fun AudioPlayer(
         }
     }
 
-    // Handle MediaPlayer lifecycle
     LaunchedEffect(audioFilePath, isRecording, fileExists) {
         Log.d(TAG, "AudioPlayer: LaunchedEffect - path: $audioFilePath, recording: $isRecording, exists: $fileExists")
 
@@ -58,7 +55,6 @@ fun AudioPlayer(
         isPrepared = false
         showError = false
 
-        // Don't try to initialize player while recording or if file doesn't exist
         if (isRecording || !fileExists) {
             mediaPlayer.reset()
             return@LaunchedEffect
@@ -97,7 +93,6 @@ fun AudioPlayer(
         }
     }
 
-    // Update progress while playing
     LaunchedEffect(isPlaying) {
         while (isPlaying && isPrepared) {
             currentPosition = mediaPlayer.currentPosition
@@ -105,7 +100,6 @@ fun AudioPlayer(
         }
     }
 
-    // Clean up MediaPlayer
     DisposableEffect(Unit) {
         onDispose {
             Log.d(TAG, "AudioPlayer: Disposing MediaPlayer.")

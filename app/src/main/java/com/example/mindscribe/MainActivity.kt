@@ -27,58 +27,50 @@ import kotlinx.coroutines.delay
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Splash screen setup (must be called before super.onCreate())
-        val splashScreen = installSplashScreen()
-        var keepSplashOnScreen by mutableStateOf(true) // State to control splash screen visibility
 
-        // Set up the exit animation for the splash screen
-        // This must be called BEFORE super.onCreate()
+        val splashScreen = installSplashScreen()
+        var keepSplashOnScreen by mutableStateOf(true)
+
         splashScreen.setOnExitAnimationListener { splashScreenViewProvider ->
-            // Get the splash screen's content view
             val splashScreenView = splashScreenViewProvider.view
             val parent = splashScreenView.parent as ViewGroup?
 
-            // Load your desired exit animation (e.g., slide_out_left)
             val slideOutAnimation = AnimationUtils.loadAnimation(
                 this,
                 R.anim.slide_out_left // Using the new slide_out_left animation
             )
 
-            // Set a listener for when the animation finishes
+
             slideOutAnimation.setAnimationListener(object : android.view.animation.Animation.AnimationListener {
                 override fun onAnimationStart(animation: android.view.animation.Animation?) {}
 
                 override fun onAnimationEnd(animation: android.view.animation.Animation?) {
-                    // Once the animation ends, remove the splash screen view
-                    // This is crucial for completing the splash screen dismissal
                     parent?.removeView(splashScreenView)
-                    splashScreenViewProvider.remove() // Important: Call this to officially remove the splash screen
+                    splashScreenViewProvider.remove()
                 }
 
                 override fun onAnimationRepeat(animation: android.view.animation.Animation?) {}
             })
 
-            // Start the animation on the splash screen view
+
             splashScreenView.startAnimation(slideOutAnimation)
         }
 
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge() // Keep this as it allows drawing under system bars
+        enableEdgeToEdge()
 
-        // Initialize theme manager with system dark mode setting
+
         val isSystemInDarkTheme = isSystemInDarkTheme()
         ThemeManager.initialize(this, isSystemInDarkTheme)
 
         setContent {
-            // Wrap with ThemeManagerProvider
+
             ThemeManagerProvider {
                 MindScribeTheme {
-                    // Combined permission and splash screen state
                     val context = LocalContext.current
                     var hasPermission by remember { mutableStateOf(false) }
                     var appReady by remember { mutableStateOf(false) }
 
-                    // Permission launcher
                     val permissionLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestPermission()
                     ) { isGranted ->
@@ -90,12 +82,10 @@ class MainActivity : ComponentActivity() {
                                 Toast.LENGTH_LONG
                             ).show()
                         }
-                        appReady = true // Set appReady after permission response
+                        appReady = true
                     }
 
-                    // Initial checks and splash screen duration control
                     LaunchedEffect(Unit) {
-                        // Check permission status initially
                         val permissionCheck = ContextCompat.checkSelfPermission(
                             context,
                             Manifest.permission.RECORD_AUDIO
@@ -103,26 +93,22 @@ class MainActivity : ComponentActivity() {
 
                         if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
                             hasPermission = true
-                            appReady = true // App is ready if permission is already granted
+                            appReady = true
                         }
 
-                        // Add slight delay for minimum splash screen display duration
-                        delay(1000) // Changed to 1 second for noticeable effect
+                        delay(1000)
 
-                        // Request permission if needed and not already granted
                         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
                             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                         }
 
-                        // Signal that the splash screen can be dismissed
-                        // The setOnExitAnimationListener will then trigger the animation
-                        keepSplashOnScreen = false // This will trigger the exit animation
+                        keepSplashOnScreen = false
                     }
 
-                    // Main content flow
+
                     when {
                         !appReady -> { /* Keep showing splash (handled by splashScreen.setKeepOnScreenCondition) */ }
-                        hasPermission -> Navigation() // Your main app navigation
+                        hasPermission -> Navigation()
                         else -> { /* Optional: Show permission rationale UI or proceed with limited functionality */ }
                     }
                 }
@@ -131,7 +117,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Helper function to check system dark mode
+
 private fun Context.isSystemInDarkTheme(): Boolean {
     return when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
         Configuration.UI_MODE_NIGHT_YES -> true

@@ -21,20 +21,14 @@ class AuthViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
     private val auth: FirebaseAuth  // Injected FirebaseAuth
 ) : ViewModel() {
-
-    // User state
     private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
-
-    // Login state
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    // Auth events
     private val _authEvents = Channel<AuthEvent>()
     val authEvents = _authEvents.receiveAsFlow()
 
-    // Sync trigger with cooldown
     private val _syncTrigger = Channel<Unit>(Channel.BUFFERED)
     val syncTrigger = _syncTrigger.receiveAsFlow()
     private var lastSyncTime = 0L

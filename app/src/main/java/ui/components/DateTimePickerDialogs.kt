@@ -6,7 +6,6 @@ import android.content.Context
 import java.util.Calendar
 import java.util.Date
 
-// Update your showDatePicker function
 fun showDatePicker(context: Context, initialCalendar: Calendar, onDateSelected: (Calendar) -> Unit) {
     val year = initialCalendar.get(Calendar.YEAR)
     val month = initialCalendar.get(Calendar.MONTH)
@@ -23,14 +22,13 @@ fun showDatePicker(context: Context, initialCalendar: Calendar, onDateSelected: 
     }, year, month, day).show()
 }
 
-// Update your showTimePicker function
 fun showTimePicker(context: Context, initialCalendar: Calendar, onTimeSelected: (Calendar) -> Unit) {
     val hour = initialCalendar.get(Calendar.HOUR_OF_DAY)
     val minute = initialCalendar.get(Calendar.MINUTE)
 
     TimePickerDialog(context, { _, selectedHour, selectedMinute ->
         val newCalendar = Calendar.getInstance().apply {
-            timeInMillis = initialCalendar.timeInMillis // Copy the existing date
+            timeInMillis = initialCalendar.timeInMillis
             set(Calendar.HOUR_OF_DAY, selectedHour)
             set(Calendar.MINUTE, selectedMinute)
         }

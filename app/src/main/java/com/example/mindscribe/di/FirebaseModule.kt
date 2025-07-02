@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/mindscribe/di/FirebaseModule.kt
 package com.example.mindscribe.di
 
 import com.google.firebase.auth.FirebaseAuth

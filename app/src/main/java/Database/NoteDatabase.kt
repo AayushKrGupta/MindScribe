@@ -1,4 +1,3 @@
-// app/src/main/java/Database/NoteDatabase.kt
 package Database
 
 import androidx.room.Database
@@ -12,5 +11,5 @@ import backend.Converters
 abstract class NoteDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
-    // Remove the companion object (will be handled by Hilt)
+
 }

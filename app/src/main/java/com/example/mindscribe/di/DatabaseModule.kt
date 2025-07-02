@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/mindscribe/di/DatabaseModule.kt
 package com.example.mindscribe.di
 
 import android.content.Context

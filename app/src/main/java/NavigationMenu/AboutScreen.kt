@@ -114,7 +114,6 @@ fun AboutScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Rest of the content remains the same...
                 Text(
                     text = "MindScribe is a sophisticated, user-centric note-taking application " +
                             "engineered for seamless capture, organization, and synchronization " +
@@ -125,8 +124,6 @@ fun AboutScreen(navController: NavController) {
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
-
-                // Features Section
                 Text(
                     text = "Core Features",
                     style = MaterialTheme.typography.titleLarge,
@@ -136,8 +133,6 @@ fun AboutScreen(navController: NavController) {
                         .padding(bottom = 8.dp),
                     textAlign = TextAlign.Start
                 )
-
-                // Feature Cards
                 FeatureCard(
                     icon = Icons.Default.Lock,
                     title = "Secure Authentication",
@@ -169,8 +164,6 @@ fun AboutScreen(navController: NavController) {
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
-
-                // Version Info
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {

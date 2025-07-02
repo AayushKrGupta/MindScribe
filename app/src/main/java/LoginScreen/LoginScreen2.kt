@@ -113,9 +113,9 @@ fun LoginScreen2(navController: NavController, onSignOut: () -> Unit) {
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(100.dp))  // Pushes content to center
+            Spacer(modifier = Modifier.height(100.dp))
 
-            // Centered buttons column
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

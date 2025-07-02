@@ -41,10 +41,8 @@ class NoteViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
     val syncTrigger = _syncTrigger.receiveAsFlow()
 
-    // Sync state
     private var lastSyncTime = 0L
 
-    // Note processing pipeline
     private val allNotesFlow = combine(
         localRepo.getAllNotesForUser(userId),
         if (userId != "guest") firestoreRepo.getNotesByUser(userId).catch { e ->
@@ -129,7 +127,6 @@ class NoteViewModel @Inject constructor(
         return merged
     }
 
-    // Public API
     fun search(query: String) {
         _searchQuery.value = query
     }

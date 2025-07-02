@@ -1,4 +1,3 @@
-// In ui/components/ThemeManager.kt
 package com.example.mindscribe.ui.components
 
 import android.content.Context

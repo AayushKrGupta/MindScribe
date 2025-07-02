@@ -66,8 +66,6 @@ fun SettingsScreen(navController: NavController) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(20.dp))
-
-            // --- APPEARANCE ---
             Text(
                 text = "Appearance",
                 style = MaterialTheme.typography.titleSmall,
@@ -91,8 +89,6 @@ fun SettingsScreen(navController: NavController) {
                     ).show()
                 }
             )
-
-            // Theme Color Selection
             SettingsClickableOption(
                 title = "Theme Color",
                 description = "Current: ${getCurrentColorName(themeManager.selectedColorScheme)}",
@@ -101,8 +97,6 @@ fun SettingsScreen(navController: NavController) {
             )
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // --- NOTES ---
             Text(
                 text = "Notes",
                 style = MaterialTheme.typography.titleSmall,
@@ -133,8 +127,6 @@ fun SettingsScreen(navController: NavController) {
             )
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // --- DATA & STORAGE ---
             Text(
                 text = "Data & Storage",
                 style = MaterialTheme.typography.titleSmall,
@@ -162,8 +154,6 @@ fun SettingsScreen(navController: NavController) {
             )
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // --- ABOUT ---
             Text(
                 text = "About",
                 style = MaterialTheme.typography.titleSmall,

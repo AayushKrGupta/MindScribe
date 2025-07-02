@@ -26,34 +26,30 @@ class ReminderReceiver : BroadcastReceiver() {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE)
                 as NotificationManager
 
-        // Get reminder details from intent using the *correct* constants/keys
-        // IMPORTANTE: Use the constants defined in NotificationScheduler
         val title = intent.getStringExtra(NotificationScheduler.NOTIFICATION_TITLE) ?: "Reminder"
         val text = intent.getStringExtra(NotificationScheduler.NOTIFICATION_TEXT) ?: "You have a reminder"
-        val reminderId = intent.getIntExtra(NotificationScheduler.REMINDER_ID, 0) // Also good to use the constant here
+        val reminderId = intent.getIntExtra(NotificationScheduler.REMINDER_ID, 0)
 
-        // Create intent to open app when notification is tapped
         val notificationIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("NOTIFICATION_ID", reminderId) // This extra is for MainActivity if it needs it
+            putExtra("NOTIFICATION_ID", reminderId)
         }
 
         val pendingIntent = PendingIntent.getActivity(
             context,
-            reminderId, // Use reminder ID as request code to make each pending intent unique
+            reminderId,
             notificationIntent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Build notification with actual reminder content
         val notification = NotificationCompat.Builder(context, "reminder_channel")
             .setSmallIcon(com.example.mindscribe.R.drawable.ic_notification)
-            .setContentTitle(title) // Now this will use the actual reminder title
-            .setContentText(text)   // Now this will use the actual reminder description
+            .setContentTitle(title)
+            .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text)) // Show full description
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .build()
 
         notificationManager.notify(reminderId, notification)

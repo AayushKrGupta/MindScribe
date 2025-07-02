@@ -68,7 +68,7 @@ fun Navigation() {
         }
     }
 
-    // Always start with Home screen
+
     NavHost(
         navController = navController,
         startDestination = "Home"
@@ -89,7 +89,7 @@ fun Navigation() {
                     onSignOut = { authViewModel.signOut() }
                 )
             } else {
-                // If somehow got here without being logged in, go back to home
+
                 LaunchedEffect(Unit) {
                     navController.navigate("Home") {
                         popUpTo("Login2") { inclusive = true }

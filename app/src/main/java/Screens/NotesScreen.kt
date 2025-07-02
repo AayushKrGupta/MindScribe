@@ -118,7 +118,7 @@ fun NotesScreen(
     val scrollState = rememberScrollState()
     val scrollCoroutineScope = rememberCoroutineScope()
 
-    // Record audio permission launcher
+
     val recordAudioPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -134,7 +134,7 @@ fun NotesScreen(
         }
     }
 
-    // Reset note state
+
     fun resetNoteState() {
         currentNoteId = ""
         titleText = ""
@@ -145,7 +145,7 @@ fun NotesScreen(
         currentListType = null
     }
 
-    // Note loading logic
+
     LaunchedEffect(noteId, currentUserId) {
         Log.d(TAG, "Loading note data for ID: $noteId")
 

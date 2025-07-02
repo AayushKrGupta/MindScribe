@@ -118,7 +118,6 @@ fun NavigationDrawerContent(
                         }
                     )
 
-                    // Show sub-items if expanded
                     if (isNoteExpanded) {
                         subItems.forEach { (subLabel, subIcon, subRoute) ->
                             NavigationDrawerItem(

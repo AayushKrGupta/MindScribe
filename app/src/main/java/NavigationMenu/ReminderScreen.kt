@@ -1,4 +1,3 @@
-// com.example.mindscribe.ui.screens/ReminderScreen.kt
 package NavigationMenu
 
 import android.Manifest
@@ -84,8 +83,6 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
             Toast.makeText(context, "Notification permission denied. Reminders may not show.", Toast.LENGTH_LONG).show()
         }
     }
-
-    // Check and request permission on first launch of this screen (or when creating reminder)
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -240,14 +237,10 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                                             newReminderDescription.trim().takeIf { it.isNotBlank() },
                                             reminderTime
                                         )
-                                        // Find the ID of the newly added reminder (hacky for in-memory, use Room ID for real app)
-                                        // For now, we assume the last added reminder is the one we want to schedule
                                         val addedReminder = reminders.lastOrNull { it.timestamp == reminderTime && it.title == newReminderTitle.trim() }
                                         addedReminder?.let {
                                             notificationScheduler.scheduleReminder(it)
                                         } ?: run {
-                                            // Fallback if we can't find the exact reminder (e.g., if multiple same titles)
-                                            // In a Room DB, you'd get the ID back from the insert operation.
 
                                         }
 

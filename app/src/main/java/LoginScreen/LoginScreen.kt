@@ -176,17 +176,17 @@ fun LoginScreen(
                     modifier = Modifier
                         .size(20.dp)
                         .clip(CircleShape)
-                        .background(if (isChecked) Color(0xFF00A859) else Color.Gray) // Use a default color for unchecked state
+                        .background(if (isChecked) Color(0xFF00A859) else Color.Gray)
                         .clickable { isChecked = !isChecked },
-                    contentAlignment = Alignment.Center // Center the content (tick mark) inside the Box
+                    contentAlignment = Alignment.Center
                 ) {
                     if (isChecked) {
-                        // Only show the tick mark if isChecked is true
+
                         Icon(
-                            imageVector = Icons.Default.Check, // Use the built-in Check icon
+                            imageVector = Icons.Default.Check,
                             contentDescription = "Checked",
-                            tint = Color.White, // Set the color of the tick mark
-                            modifier = Modifier.size(16.dp) // Adjust size as needed
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }

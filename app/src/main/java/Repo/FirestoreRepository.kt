@@ -22,20 +22,16 @@ class FirestoreRepository @Inject constructor() {
     private companion object {
         const val TAG = "FirestoreRepository"
         const val MAX_RETRIES = 3
-        const val BATCH_LIMIT = 500 // Firestore batch limit
+        const val BATCH_LIMIT = 500
     }
-
     suspend fun syncWithCloud(userId: String, localNotes: List<Note>) {
         try {
-            // Step 1: Get all remote notes
             val remoteNotes = getNotesByUser(userId).first()
 
-            // Step 2: Find notes that need updating
             val notesToUpdate = mutableListOf<Note>()
             val notesToCreate = mutableListOf<Note>()
             val notesToDelete = mutableListOf<String>()
 
-            // Check local notes against remote
             localNotes.forEach { localNote ->
                 remoteNotes.find { it.id == localNote.id }?.let { remoteNote ->
                     if (localNote.timestamp > remoteNote.timestamp) {
@@ -45,15 +41,11 @@ class FirestoreRepository @Inject constructor() {
                     notesToCreate.add(localNote)
                 }
             }
-
-            // Check remote notes against local
             remoteNotes.forEach { remoteNote ->
                 if (localNotes.none { it.id == remoteNote.id }) {
                     notesToDelete.add(remoteNote.id)
                 }
             }
-
-            // Step 3: Execute all operations in batches
             val batches = listOf(
                 notesToCreate.chunked(BATCH_LIMIT),
                 notesToUpdate.chunked(BATCH_LIMIT),
@@ -63,14 +55,12 @@ class FirestoreRepository @Inject constructor() {
             batches.forEach { batch ->
                 when (batch.firstOrNull()) {
                     is Note -> {
-                        // Handle create/update batch
                         val notesBatch = batch.filterIsInstance<Note>()
                         notesBatch.forEach { note ->
                             upsertNote(note, userId)
                         }
                     }
                     is String -> {
-                        // Handle delete batch
                         val idsBatch = batch.filterIsInstance<String>()
                         idsBatch.forEach { id ->
                             deleteNote(id)
