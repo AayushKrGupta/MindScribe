@@ -93,7 +93,6 @@ class NoteViewModel @Inject constructor(
                 }
             } ?: run {
                 Log.d(TAG, "User logged out")
-                _uiState.update { it.copy(toastMessage = "Logged out") }
             }
         }
     }
@@ -186,7 +185,6 @@ class NoteViewModel @Inject constructor(
         updateSyncState(
             loading = false,
             status = "Sync failed",
-            toast = "Sync failed: ${e.message ?: "Unknown error"}"
         )
     }
 

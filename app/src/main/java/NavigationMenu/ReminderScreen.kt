@@ -1,7 +1,6 @@
 // com.example.mindscribe.ui.screens/ReminderScreen.kt
-package com.example.mindscribe.ui.screens
+package NavigationMenu
 
-import Reminder.Reminder
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -30,26 +29,49 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import ui.components.showDatePicker
 import ui.components.showTimePicker
-import util.NotificationScheduler
-import Reminder.ReminderViewModel
 import android.R
 import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowLeft
 import androidx.compose.ui.res.painterResource
+import androidx.room.Room
+import com.example.mindscribe.data.ReminderDatabase
+import com.example.mindscribe.viewmodel.ReminderViewModel
+import com.example.mindscribe.viewmodel.ReminderViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import com.example.mindscribe.model.Reminder
+import com.example.mindscribe.repository.ReminderRepository
+import com.example.mindscribe.util.NotificationScheduler
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReminderScreen(navController: NavController, reminderViewModel: ReminderViewModel = viewModel()) {
+
     val context = LocalContext.current
-    val reminders by reminderViewModel.reminders.collectAsState()
+
+    // Initialize database and repository
+    val reminderDb = remember {
+        Room.databaseBuilder(
+            context,
+            ReminderDatabase::class.java,
+            "reminder_database"
+        ).build()
+    }
+    val repository = remember { ReminderRepository(reminderDb.reminderDao()) }
+
+    // Get ViewModel with factory
+    val viewModel: ReminderViewModel = viewModel(
+        factory = ReminderViewModelFactory(repository)
+    )
+    val reminders by viewModel.reminders.collectAsState(initial = emptyList())
     val notificationScheduler = remember { NotificationScheduler(context) }
 
     // State for new reminder
     var newReminderTitle by remember { mutableStateOf("") }
     var newReminderDescription by remember { mutableStateOf("") }
-    var selectedCalendar by remember { mutableStateOf(Calendar.getInstance()) } // Calendar for date/time
+    var selectedCalendar by remember { mutableStateOf(Calendar.getInstance()) }
     var showAddReminderDialog by remember { mutableStateOf(false) }
 
     // Request POST_NOTIFICATIONS permission for Android 13+
@@ -78,7 +100,7 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                 title = { Text("Reminders", fontSize = 20.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(imageVector = Icons.Default.KeyboardDoubleArrowLeft, contentDescription = "Back")
                     }
                 }
             )
@@ -106,7 +128,7 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                         Image(
                             painter = painterResource(id = com.example.mindscribe.R.drawable.reminder),
                             contentDescription = "No Reminders",
-                            modifier = Modifier.size(170.dp)
+                            modifier = Modifier.size(200.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -226,7 +248,7 @@ fun ReminderScreen(navController: NavController, reminderViewModel: ReminderView
                                         } ?: run {
                                             // Fallback if we can't find the exact reminder (e.g., if multiple same titles)
                                             // In a Room DB, you'd get the ID back from the insert operation.
-                                            Toast.makeText(context, "Reminder added but scheduling might fail if ID not retrieved correctly.", Toast.LENGTH_LONG).show()
+
                                         }
 
                                         Toast.makeText(context, "Reminder added!", Toast.LENGTH_SHORT).show()

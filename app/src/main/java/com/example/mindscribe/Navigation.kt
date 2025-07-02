@@ -15,12 +15,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.mindscribe.ui.screens.ReminderScreen
-import com.example.mindscribe.ui.screens.SettingsScreen
 import com.example.mindscribe.viewmodel.AuthViewModel
 import com.example.mindscribe.viewmodel.NoteViewModel
 import android.widget.Toast
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.mindscribe.data.ReminderDatabase
+import com.example.mindscribe.repository.ReminderRepository
+import com.example.mindscribe.ui.screens.SettingsScreen
 import com.example.mindscribe.viewmodel.AuthViewModel.AuthEvent
+import com.example.mindscribe.viewmodel.ReminderViewModel
+import com.example.mindscribe.viewmodel.ReminderViewModelFactory
 
 @Composable
 fun Navigation() {
@@ -127,7 +131,15 @@ fun Navigation() {
         }
 
         composable("images") { ImagesScreen(navController) }
-        composable("reminders") { ReminderScreen(navController) }
+        composable("reminders") {
+            val repository = ReminderRepository(
+                ReminderDatabase.getDatabase(LocalContext.current).reminderDao()
+            )
+            val viewModel: ReminderViewModel = viewModel(
+                factory = ReminderViewModelFactory(repository)
+            )
+            ReminderScreen(navController, viewModel)
+        }
         composable("archive") {
             val noteViewModel: NoteViewModel = hiltViewModel()
             ArchiveScreen(navController = navController, noteViewModel = noteViewModel)

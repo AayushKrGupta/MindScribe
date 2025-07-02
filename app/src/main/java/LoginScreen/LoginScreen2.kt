@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -65,10 +66,10 @@ fun LoginScreen2(navController: NavController, onSignOut: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Account", fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = { Text("My Account", fontSize = 20.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(imageVector = Icons.Default.KeyboardDoubleArrowLeft, contentDescription = "Back")
                     }
                 }
             )

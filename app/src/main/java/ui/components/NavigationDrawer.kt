@@ -15,11 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
@@ -55,13 +52,14 @@ fun NavigationDrawerContent(
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(16.dp))
 
-            // App Logo
-            Box(
+            // App Logo and Name Image
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 16.dp),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // App Logo
                 Box(
                     modifier = Modifier
                         .size(64.dp)
@@ -81,23 +79,21 @@ fun NavigationDrawerContent(
                             }
                     )
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // App Name Image
+                Image(
+                    painter = painterResource(id = R.drawable.mindscribe),
+                    contentDescription = "MindScribe",
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(32.dp), // Adjust height as needed
+                    contentScale = ContentScale.Fit
+                )
             }
 
-            Text(
-                text = "MindScribe",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontStyle = FontStyle.Italic,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.SansSerif
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()  // Make the Text take full width
-                    .padding(top = 8.dp),
-                textAlign = TextAlign.Center  // Center the text within its available width
-            )
-        }
-
-            Spacer(Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Main Drawer Items
             mainItems.forEach { (label, icon, route) ->
@@ -154,3 +150,4 @@ fun NavigationDrawerContent(
             }
         }
     }
+}

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowLeft
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.*
@@ -49,7 +50,7 @@ fun ArchiveScreen(navController: NavController, noteViewModel: NoteViewModel) {
                 title = { Text("Archive", fontSize = 20.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(imageVector = Icons.Default.KeyboardDoubleArrowLeft, contentDescription = "Back")
                     }
                 }
             )

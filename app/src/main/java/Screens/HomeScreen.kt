@@ -17,7 +17,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material3.*
+import androidx.compose.material3.* // Ensure all Material 3 components are imported
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import backend.Note
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.mindscribe.R
 import com.example.mindscribe.ui.components.NavigationDrawerContent
 import com.example.mindscribe.viewmodel.NoteViewModel
@@ -64,14 +65,16 @@ fun HomeScreen(
     var searchText by remember { mutableStateOf("") }
     val notes by noteViewModel.activeNotes.observeAsState(emptyList())
     val uiState by noteViewModel.uiState.collectAsState()
+    val auth = FirebaseAuth.getInstance()
 
-    // Current user state with auth listener
+    val currentUser1 = auth.currentUser
+    val profileImageUrl = currentUser1?.photoUrl?.toString()
+
     val currentUser by produceState<FirebaseUser?>(initialValue = noteViewModel.auth.currentUser) {
         val listener = FirebaseAuth.AuthStateListener { auth ->
             value = auth.currentUser
             if (value != null) {
                 scope.launch {
-                    Toast.makeText(context, "Syncing with Firebase...", Toast.LENGTH_SHORT).show()
                     noteViewModel.syncNotes()
                 }
             }
@@ -82,20 +85,16 @@ fun HomeScreen(
         }
     }
 
-    // Initial sync
     LaunchedEffect(Unit) {
         if (currentUser != null) {
-            Toast.makeText(context, "Syncing with Firebase...", Toast.LENGTH_SHORT).show()
             noteViewModel.syncNotes()
         }
     }
 
-    // Search handling
     LaunchedEffect(searchText) {
         noteViewModel.search(searchText)
     }
 
-    // Toast message handling
     LaunchedEffect(uiState.toastMessage) {
         uiState.toastMessage?.let { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -183,13 +182,25 @@ fun HomeScreen(
                                     onClick = onAccountClick,
                                     modifier = Modifier.size(40.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.AccountCircle,
-                                        contentDescription = "Account",
-                                        tint = if (currentUser != null) MaterialTheme.colorScheme.inversePrimary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(28.dp)
-                                    )
+                                    if (!profileImageUrl.isNullOrEmpty()) {
+                                        Image(
+                                            painter = rememberAsyncImagePainter(
+                                                model = profileImageUrl,
+                                                error = painterResource(id = R.drawable.userprofile)
+                                            ),
+                                            contentDescription = "Profile Picture",
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Filled.AccountCircle,
+                                            contentDescription = "Account",
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -197,25 +208,49 @@ fun HomeScreen(
                     )
                 },
                 floatingActionButton = {
-                    FloatingActionButton(
+                    // --- FAB Modernization START ---
+                    ExtendedFloatingActionButton(
                         onClick = { navController.navigate("note/-1") },
-                        containerColor = colorResource(id = R.color.black),
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .shadow(
-                                elevation = 4.dp,
-                                shape = CircleShape,
-                                clip = true
+                        modifier = Modifier.padding(16.dp), // Add some padding around the FAB
+                        containerColor = MaterialTheme.colorScheme.primaryContainer, // Use Material 3 primary container color
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer, // Content color for primary container
+                        elevation = FloatingActionButtonDefaults.elevation( // Custom elevation for a lifted effect
+                            defaultElevation = 6.dp,
+                            pressedElevation = 12.dp,
+                            focusedElevation = 8.dp,
+                            hoveredElevation = 8.dp
+                        ),
+                        icon = {
+                            Icon(
+                                Icons.Filled.EditNote,
+                                contentDescription = "Add Note"
                             )
+                        },
+                        text = { Text("Add Note") } // Text label for the FAB
+                    )
+
+                    /*
+                    // Alternative: SmallFloatingActionButton for a simpler circular FAB
+                    SmallFloatingActionButton(
+                        onClick = { navController.navigate("note/-1") },
+                        modifier = Modifier
+                            .size(56.dp) // Standard size for Small FAB
+                            .padding(16.dp),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 6.dp,
+                            pressedElevation = 12.dp
+                        )
                     ) {
                         Icon(
                             Icons.Filled.EditNote,
                             contentDescription = "Add Note",
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            modifier = Modifier.size(24.dp) // Smaller icon for Small FAB
                         )
                     }
+                    */
+                    // --- FAB Modernization END ---
                 }
             ) { innerPadding ->
                 LazyVerticalGrid(
@@ -245,7 +280,7 @@ fun HomeScreen(
                                         Image(
                                             painter = painterResource(id = R.drawable.addnote),
                                             contentDescription = "Add Note",
-                                            modifier = Modifier.size(190.dp)
+                                            modifier = Modifier.size(215.dp)
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
@@ -326,9 +361,7 @@ fun NoteCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                // Display image if available
                 if (!note.imageUrls.isNullOrEmpty()) {
-                    // Safely get the first image using ?.firstOrNull() and the null-safe operator ?
                     note.imageUrls?.firstOrNull()?.let { firstImageUrl ->
                         AsyncImage(
                             model = firstImageUrl,
@@ -417,15 +450,19 @@ fun NoteCard(
                 )
             }
 
+            // --- Corrected DropdownMenu START ---
             DropdownMenu(
                 expanded = showOptionsMenu,
                 onDismissRequest = { showOptionsMenu = false },
-                modifier = Modifier
-                    .background(
-                        MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                // Apply shape and elevation directly to the DropdownMenu
+                shape = RoundedCornerShape(16.dp), // Match the desired rounded corners
+                tonalElevation = 8.dp,             // Add tonal elevation for depth
+                shadowElevation = 8.dp             // Explicit shadow for a lifted effect
+                // The background color will automatically be derived from the theme's
+                // surface colors based on the elevation, matching Material 3 guidelines.
             ) {
+                // The DropdownMenuItems go directly here within the DropdownMenu content lambda
+                // No need for an extra Surface or Column wrapper around these
                 DropdownMenuItem(
                     text = { Text(if (note.isPinned) "Unpin Note" else "Pin Note") },
                     onClick = {
@@ -438,7 +475,8 @@ fun NoteCard(
                             else Icons.Outlined.PushPin,
                             contentDescription = if (note.isPinned) "Unpin" else "Pin"
                         )
-                    }
+                    },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 )
                 DropdownMenuItem(
                     text = { Text(if (note.isArchived) "Unarchive Note" else "Archive Note") },
@@ -451,7 +489,8 @@ fun NoteCard(
                             Icons.Filled.Archive,
                             contentDescription = "Archive"
                         )
-                    }
+                    },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 )
                 Divider()
                 DropdownMenuItem(
@@ -466,9 +505,11 @@ fun NoteCard(
                             contentDescription = "Delete",
                             tint = MaterialTheme.colorScheme.error
                         )
-                    }
+                    },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                 )
             }
+            // --- Corrected DropdownMenu END ---
         }
     }
 }

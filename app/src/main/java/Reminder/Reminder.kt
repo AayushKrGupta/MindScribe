@@ -1,15 +1,13 @@
-// com.example.mindscribe.data/Reminder.kt
-package Reminder
+package com.example.mindscribe.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-// Using Room annotations for future persistence, even if not fully implemented yet
-@Entity(tableName = "reminders")
+@Entity(tableName = "reminder_table")
 data class Reminder(
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val title: String,
     val description: String?,
-    val timestamp: Long // Milliseconds since epoch for the reminder time
+    val timestamp: Long
 )
+

@@ -10,6 +10,7 @@
     <color name="my_notification_icon_color">#FF0000</color>
     <color name="pure_black">#FF000000</color> <!-- Pure black -->
     <color name="snapchat_yellow">#FFFC00</color>
+    <color name="colorAccent">#FF0000</color>
 
 
 
