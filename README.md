@@ -11,22 +11,29 @@ MindScribe is a sophisticated, user-centric note-taking application engineered f
 ## 📱 App Screenshots
 
 <div align="center">
-  <img src="screenshots/a.png" width="30%" alt="Home Screen"/>
-  <img src="screenshots/1.png" width="30%" alt="Note Editor"/> 
-  <img src="screenshots/2.png" width="30%" alt="Navigation Drawer"/>
+  <img src="screenshots/HomeScreen.png" width="30%" alt="Home Screen"/>
+  <img src="screenshots/NoteScreen.png" width="30%" alt="Note Editor"/>
+  <img src="screenshots/Sidebar.png" width="30%" alt="Navigation Drawer"/>
 </div>
 
 <div align="center">
-  <img src="screenshots/3.png" width="30%" alt="Dark Mode"/>
-  <img src="screenshots/4.png" width="30%" alt="Search Functionality"/>
-  <img src="screenshots/5.png" width="30%" alt="Settings"/>
+  <img src="screenshots/Settings.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/Reminder1.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/Myaccount.png" width="30%" alt="Settings"/>
 </div>
 
 <div align="center">
-  <img src="screenshots/6.png" width="30%" alt="Dark Mode"/>
-  <img src="screenshots/note.png" width="30%" alt="Search Functionality"/>
-  <img src="screenshots/8.png" width="30%" alt="Settings"/>
+  <img src="screenshots/Notification.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/EmptyNote.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/LoginScreen1.png" width="30%" alt="Settings"/>
 </div>
+
+<div align="center">
+  <img src="screenshots/Notification.png" width="30%" alt="Dark Mode"/>
+  <img src="screenshots/EmptyNote.png" width="30%" alt="Search Functionality"/>
+  <img src="screenshots/LoginScreen1.png" width="30%" alt="Settings"/>
+</div>
+
 
 ## ✨ Core Features & Functionality
 
